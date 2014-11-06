@@ -14,15 +14,15 @@ To install neo4j:
 $ wget http://neo4j.com/artifact.php?name=neo4j-community-2.1.5-unix.tar.gz
 $ tar -xzf neo4j-community-2.1.5-unix.tar.gz
 $ cd neo4j-community-2.1.5/
-$ bin/neo4j start
+$ sudo bin/neo4j start
 # Point browser to http://localhost:7474
 ```
 
 To install ruby gem:
 ```
 $ sudo gem install neo4j-core --pre
-$ rake neo4j:install[community-2.1.3]
-$ rake neo4j:start
 ```
 
-Assumes you have Ruby and Java 1.7+ installed.
+Assumes you have Ruby1.9+ and Java 1.7+ installed.
+
+TODO: write up notes on tuning the configuration of neo4j.
