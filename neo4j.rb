@@ -33,19 +33,20 @@ class GraphDatabase
 
   def create_link(address1, address2, source_vp, destination_address)
     destination_address = Inet::aton(destination_address) if destination_address.is_a? String
-    router1 = create_router(address1)
-    router2 = create_router(address1)
+    # TODO(cs): figure out how to extract IDs from these routers
+    router1 = create_router(address1).first
+    router2 = create_router(address1).first
     # Ensure VP exists in DB.
     create_vp(source_vp)
     @session.query <<-eos
-      START r1=node(#{router1.id}), r2=node(#{router2.id})
+      START r1=#{router1},r2=#{router2}
       CREATE r1-[l:Link {source_vp: #{source_vp}, destination_address: #{destination_address }}]-r2
       return l
     eos
   end
 
   def create_vp(name)
-    @session.query("MERGE (vp:VP { name: #{name} }) RETURN vp")
+    @session.query("MERGE (vp:VP { name: '#{name}' }) RETURN vp")
   end
 end
 
