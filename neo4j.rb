@@ -10,12 +10,15 @@ class GraphDatabase
 
   def place_constraints
     @session.query("CREATE CONSTRAINT ON (r:Router) ASSERT r.address IS UNIQUE")
-    @session.query("CREATE CONSTRAINT ON (vp:VP) ASSERT vp.name IS UNIQUE")
     # TODO(cs): create constraints on links as well?
   end
 
-  def select_all_routers_and_edges
-    @session.query("MATCH (N) RETURN N")
+  def select_all_routers
+    @session.query("MATCH (router:Router) RETURN router")
+  end
+
+  def select_all_links
+    @session.query("MATCH (r1)-[link:Link]->(r2) RETURN link")
   end
 
   def delete_all
@@ -26,34 +29,28 @@ class GraphDatabase
     eos
   end
 
-  def create_router(address)
-    address = Inet::aton(address) if address.is_a? String
-    @session.query("MERGE (r:Router { address: #{address} }) RETURN r")
-  end
-
-  def create_link(address1, address2, source_vp, destination_address)
-    destination_address = Inet::aton(destination_address) if destination_address.is_a? String
-    # TODO(cs): figure out how to extract IDs from these routers
-    router1 = create_router(address1).first
-    router2 = create_router(address1).first
-    # Ensure VP exists in DB.
-    create_vp(source_vp)
-    @session.query <<-eos
-      START r1=#{router1},r2=#{router2}
-      CREATE r1-[l:Link {source_vp: #{source_vp}, destination_address: #{destination_address }}]-r2
-      return l
-    eos
-  end
-
-  def create_vp(name)
-    @session.query("MERGE (vp:VP { name: '#{name}' }) RETURN vp")
+  def create_link(address1, address2, vp, destination_address)
+    (address1, address2, destination_address) = [address1, address2, destination_address].map do |addr|
+      Inet::aton(addr) if addr.is_a? String
+    end
+    # TODO(cs): figure out how to use DSL to make node unique, rather than raw Cypher
+    r1 = @session.query("MERGE (r1:Router { address: #{address1} }) RETURN r1").first.r1
+    r2 = @session.query("MERGE (r2:Router { address: #{address2} }) RETURN r2").first.r2
+    r1.create_rel("Link", r2, {vp: vp, destination_address: destination_address})
   end
 end
 
 if $0 == __FILE__
   g = GraphDatabase.new
+  g.place_constraints
   g.create_link("1.2.3.4", "2.3.4.5", "vp1", "5.6.7.8")
-  g.select_all.each do |n|
-    puts n
+  g.create_link("1.2.3.4", "2.3.4.5", "vp2", "5.6.7.8")
+  g.select_all_routers.each do |response|
+    router = response.router
+    puts "#{router.inspect} #{router.labels} #{router.props} #{router.rels} #{router.nodes}"
+  end
+  g.select_all_links.each do |response|
+    link = response.link
+    puts "#{link.inspect} #{link.rel_type} #{link.props}"
   end
 end
