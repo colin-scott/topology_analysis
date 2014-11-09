@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 		if (ip.s_addr == 0)
 		    printf(" *");
 		else
-		    printf(" %s %f %d", inet_ntoa(ip), lat, ttl);
+		    printf(" %u %f %d", ip.s_addr, lat, ttl);
 	    }
 	    printf("\n");
 	}

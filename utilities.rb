@@ -335,6 +335,10 @@ module Inet
     ((intaddr >> 24) & 255).to_s + '.' + ((intaddr >> 16) & 255).to_s + '.'  + ((intaddr >> 8) & 255).to_s + '.' + (intaddr & 255).to_s
   end
 
+  def Inet::ntoa_little_endian( intaddr )
+    (intaddr & 255).to_s + '.' + ((intaddr >> 8) & 255).to_s + '.'  + ((intaddr >> 16) & 255).to_s + '.' + ((intaddr >> 24) & 255).to_s
+  end
+
   def Inet::aton(dotted)
     if /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?$/.match(dotted)==nil then return 0 end
     ints=dotted.chomp("\n").split(".").collect{|x| x.to_i}

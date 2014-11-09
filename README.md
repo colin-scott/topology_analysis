@@ -7,6 +7,8 @@ to try using it for our topology analysis. Main advantage: we get to write
 [declarative queries](http://neo4j.com/docs/stable/cypher-query-lang.html) rather than
 low-level code (building our own indexes, iterating, etc.)
 
+### Installation
+
 We use the neo4j ruby gem to interface with the database via ruby scripts.
 
 To install neo4j:
@@ -26,3 +28,9 @@ $ sudo gem install neo4j-core --pre
 Assumes you have Ruby1.9+ and Java 1.7+ installed.
 
 TODO: write up notes on tuning the configuration of neo4j.
+
+### Loading traceroutes
+
+```
+$ ./load_binary_traceroutes.rb <Any number of trace.out files>
+```
