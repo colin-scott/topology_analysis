@@ -37,9 +37,8 @@ class TracerouteFileReader
   end
 
   def parse_and_insert_traceroute(line)
-    # TODO(cs): figure out how to get the destination reliably.
-    destination = nil
     hops = line.chomp.split
+    destination = hops.shift.to_i
     last_ip, last_lat, last_ttl = nil, nil, nil
     ip, lat, ttl = nil, nil, nil
     # TODO(cs): add a link from the VP to the first hop
@@ -52,7 +51,6 @@ class TracerouteFileReader
         # TODO(cs): sanity check input.
         ip, lat, ttl = hops.shift.to_i, hops.shift.to_f, hops.shift.to_i
       end
-      puts "IP is #{ip} #{lat} #{ttl}"
       if not ip.nil? and not last_ip.nil?
         @database.create_link(last_ip, ip, @vp, destination, ttl, lat)
       end
