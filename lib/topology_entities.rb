@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-load 'utilities.rb'
+require_relative 'utilities.rb'
 
 class Router
   def initialize(query_response)

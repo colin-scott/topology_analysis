@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 
 require 'neo4j-core'
-load 'utilities.rb'
-load 'topology_entities.rb'
+require_relative 'utilities.rb'
+require_relative 'topology_entities.rb'
 
 class GraphDatabase
   def initialize

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-load 'neo4j.rb'
+load 'lib/neo4j.rb'
 
 # TODO(cs): figure out how to read destination field from each traceroute in
 # the binary file.
