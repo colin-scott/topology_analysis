@@ -2,9 +2,6 @@
 
 load 'lib/neo4j.rb'
 
-# TODO(cs): figure out how to read destination field from each traceroute in
-# the binary file.
-
 def compile_readoutfile
   ret = nil
   Dir.chdir("readoutfile") do
