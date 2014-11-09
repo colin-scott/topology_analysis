@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 load 'lib/neo4j.rb'
+load 'lib/traceroute_reader_util.rb'
 
 def compile_readoutfile
   ret = nil
@@ -10,9 +11,7 @@ def compile_readoutfile
   ret
 end
 
-class TracerouteFileReader
-  ReadOutFile = "./readoutfile/readoutfile_no_ntoa"
-
+class BinaryTracerouteFileReader < TracerouteFileReader
   def initialize(filename, database)
     @filename = filename
     @vp = get_vp_from_filename(filename)
@@ -27,18 +26,12 @@ class TracerouteFileReader
     end
   end
 
-  private
-
-  def get_vp_from_filename(filename)
-    filename.gsub("trace.out", "")
-  end
-
   def parse_and_insert_traceroute(line)
     hops = line.chomp.split
     destination = hops.shift.to_i
     last_ip, last_lat, last_ttl = nil, nil, nil
     ip, lat, ttl = nil, nil, nil
-    # TODO(cs): add a link from the VP to the first hop
+    # TODO(cs): add a link from the VP to the first hop.
     while not hops.empty?
       last_ip, last_lat, last_ttl = ip, lat, ttl
       if hops[0] == "*"
@@ -53,6 +46,7 @@ class TracerouteFileReader
       end
     end
   end
+
 end
 
 if $0 == __FILE__
@@ -63,6 +57,6 @@ if $0 == __FILE__
   database = GraphDatabase.new
 
   ARGV.each do |file|
-    TracerouteFileReader.new(file, database).read
+    BinaryTracerouteFileReader.new(file, database).read
   end
 end
