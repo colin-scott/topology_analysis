@@ -34,3 +34,15 @@ TODO: write up notes on tuning the configuration of neo4j.
 ```
 $ ./load_binary_traceroutes.rb <Any number of trace.out files>
 ```
+
+### Printing the database contents
+
+```
+$ ./print_database_contents.rb
+```
+
+### Clearing the database
+
+```
+$ ./clear_database.rb
+```
