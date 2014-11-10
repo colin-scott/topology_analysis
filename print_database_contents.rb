@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-load 'lib/neo4j.rb'
-load 'lib/topology_entities.rb'
+require_relative 'lib/neo4j.rb'
+require_relative 'lib/topology_entities.rb'
 
 if $0 == __FILE__
   g = GraphDatabase.new

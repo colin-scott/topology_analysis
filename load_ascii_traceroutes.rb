@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-load 'lib/neo4j.rb'
-load 'lib/traceroute_reader_util.rb'
+require_relative 'lib/neo4j.rb'
+require_relative 'lib/traceroute_reader_util.rb'
 
 class AsciiTracerouteFileReader < TracerouteFileReader
   def read
