@@ -2,14 +2,19 @@
 
 require_relative 'lib/neo4j.rb'
 require_relative 'lib/traceroute_reader_util.rb'
+require_relative 'avg_hop.rb'
+
+$avghop = AverageHop.new
 
 class AsciiTracerouteFileReader < TracerouteFileReader
   def read
+    puts @filename
     File.open(@filename) do |f|
       next_destination = f.gets
       while next_destination
         next_destination = parse_and_insert_traceroute(f, next_destination)
       end
+      puts $avghop.avg_hop @vp
     end
   end
 
@@ -30,7 +35,13 @@ class AsciiTracerouteFileReader < TracerouteFileReader
     # H 11 64.233.174.131 21.052999 244 1415563045
     # H 12 0.0.0.0 0.000000 0 0
     # H 13 8.8.8.8 21.146999 46 1415563055
-    _, destination, _, _ = next_destination.chomp.split
+    _, destination, _, nhop = next_destination.chomp.split
+    nhop = nhop.to_i
+    if not $avghop.insert(@vp, destination, nhop)
+       #puts 'end'
+       #puts $avghop.avg_hop @vp
+       #exit
+    end
     # TODO(cs): add a link from the VP to the first hop.
     # TODO(cs): sanity check input.
     last_ip, last_lat, last_ttl = nil, nil, nil
@@ -38,6 +49,7 @@ class AsciiTracerouteFileReader < TracerouteFileReader
     while line = f.gets
       line = line.chomp
       return line if line[0] == "D"
+      next
       last_ip, last_lat, last_ttl = ip, lat, ttl
       # TODO(cs): figure out what the last entry is.
       _, _, ip, lat, ttl, _ = line.split
@@ -56,7 +68,13 @@ end
 if $0 == __FILE__
   database = GraphDatabase.new
 
-  ARGV.each do |file|
+  datadir = ARGV[0]
+  prefix = ARGV[1]
+  
+  filelist = Dir.entries(datadir).sort
+  filelist.each do |file|
+    next if not file.start_with? prefix
+    file = File.join(datadir, file)
     AsciiTracerouteFileReader.new(file, database).read
   end
 end

@@ -12,11 +12,6 @@ def compile_readoutfile
 end
 
 class BinaryTracerouteFileReader < TracerouteFileReader
-  def initialize(filename, database)
-    @filename = filename
-    @vp = get_vp_from_filename(filename)
-    @database = database
-  end
 
   def read
     IO.popen("#{TracerouteFileReader::ReadOutFile} #{@filename}") do |f|
