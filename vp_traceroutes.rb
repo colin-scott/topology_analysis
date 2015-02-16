@@ -156,6 +156,10 @@ if $0 == __FILE__
         opts.on("-e", "--end DATE", "End date to download, e.g. 20150101 (If not set, end till latest)") do |enddate|
             options[:end] = enddate
         end
+        options[:vp] = nil
+        opts.on("--vp VP", "Name of vantage point") do |vp|
+            options[:vp] = vp
+        end
         opts.on("-h", "--help", "Prints this help") do 
             puts opts
             exit
@@ -168,7 +172,7 @@ if $0 == __FILE__
     puts options
     puts data_dir
 
-    vpfiles = retrieve(TopoConfig::REMOTE_DATA_URI, nil, options[:start], options[:end])
+    vpfiles = retrieve(TopoConfig::REMOTE_DATA_URI, options[:vp], options[:start], options[:end])
     vpfiles.keys.sort.each do |vp|
         puts "[#{Time.now}] retrieve data for #{vp}"
         files = vpfiles[vp]

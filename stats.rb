@@ -17,7 +17,7 @@ class Stats
         @as_hops = {}
         @ip_list = Set.new
         @peer_as = Set.new
-        @targets = nil
+        @filepfx = nil
         @vp = nil
     end
 
@@ -41,30 +41,36 @@ class Stats
         @as_hops.clear
         @ip_list.clear
         @peer_as.clear
-        @targets = nil
+        @filepfx = nil
         @vp = nil
     end
 
     def analyze targets
-        @targets = targets
+        @filepfx = "iter#{targets.gsub(',', '_')}"
         # parse targets into range
-        if targets.include? '-'
-            st, ed = targets.split('-')
-            range = (st.to_i .. ed.to_i)
-        else
-            v = targets.to_i
-            range = (v .. v)
-        end
+        iterlist = parse_targets targets
         # start the analysis
-        niter = 0
-        range.each { |iterid| analyze_iteration(iterid); niter += 1 }
+        iterlist.each { |iterid| analyze_iteration(iterid) }
         # write results to file
-        write_summary niter
-        write_cdf("iter#{@targets}.iphop.csv", @ip_hops)
-        write_cdf("iter#{@targets}.ashop.csv", @as_hops)
+        write_summary iterlist.size
+        write_cdf("#{@filepfx}.iphop.csv", @ip_hops)
+        write_cdf("#{@filepfx}.ashop.csv", @as_hops)
         write_peeras
         # clear results
         clear
+    end
+
+    def parse_targets targets
+        iterlist = []
+        if targets.include? ','
+            targets.split(',').each { |t| iterlist += parse_targets(t) }
+        elsif targets.include? '-'
+            st, ed = targets.split('-')
+            iterlist = (st.to_i .. ed.to_i).to_a
+        else
+            iterlist = [targets.to_i]
+        end
+        iterlist
     end
 
     def analyze_iteration iterid
@@ -96,7 +102,7 @@ class Stats
     end
 
     def write_summary niter
-        fn = File.join(TopoConfig::OUTPUT_DIR, "iter#{@targets}.summary.txt")
+        fn = File.join(TopoConfig::OUTPUT_DIR, "#{@filepfx}.summary.txt")
         puts "[#{Time.now}] Write summary to #{fn}"
         file = File.open(fn, 'w')
         file.puts("Vantage Point: #{@vp[0]}")
@@ -128,7 +134,7 @@ class Stats
     end
 
     def write_peeras 
-        fn = File.join(TopoConfig::OUTPUT_DIR, "iter#{@targets}.peeras.txt")
+        fn = File.join(TopoConfig::OUTPUT_DIR, "#{@filepfx}.peeras.txt")
         puts "[#{Time.now}] Write to PeerAS file #{fn}"
         File.open(fn, 'w') do |file|
             @peer_as.sort.each { |asn| file.puts asn }
@@ -136,7 +142,7 @@ class Stats
     end
     
     def log_abnormal tr, aslist
-        fn = File.join(TopoConfig::OUTPUT_DIR, "iter#{@targets}.abnormal.txt")
+        fn = File.join(TopoConfig::OUTPUT_DIR, "#{@filepfx}.abnormal.txt")
         File.open(fn, 'a') do |file|
             file.puts '---------------------------------------'
             file.puts tr.to_s
@@ -188,8 +194,8 @@ end
 if $0 == __FILE__
     if ARGV.size == 0
         puts "Usage: #{File.basename($0)} <iteration> [<iteration>...]"
-        puts "    <iteration>\t\titeration id or range, e.g., 1, 2-3"
-        puts "\t\t\trange is for aggregation analysis"
+        puts "    <iteration>\t\tsingle iteration id, e.g., 1"
+        puts "\t\t\titeration range, e.g., \"2-3\", \"4-7,9-10\" (for aggregation analysis)"
         exit
     end
     stats = Stats.new
