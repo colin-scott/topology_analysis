@@ -95,7 +95,7 @@ class Analysis
 
             if @funcs.include? :ASLink
                 asn = ashops[index]
-                if not asn.nil? and not lastasn.nil?
+                if not asn.nil? and not lastasn.nil? and asn != lastasn
                     as_links << [lastasn, asn]
                 end
                 lastasn = asn

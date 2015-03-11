@@ -32,25 +32,25 @@ if $0 == __FILE__
     end
 
     date = options[:date]
-    filelist = retrieve_iplane(date)
-    output_dir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
-    Dir.mkdir(output_dir) if not Dir.exist? output_dir
+    tracelist = retrieve_iplane(date)
+    tracedir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
+    Dir.mkdir(tracedir) if not Dir.exist? tracedir
 
     stats = Analysis.new [:AS, :ASLink]
     targets = load_target_list
 
     puts "[#{Time.now}] Start the analysis on iPlane date"
-    filelist.each do |vp, uris|
+    tracelist.each do |vp, uris|
         puts "[#{Time.now}] Processing data from #{vp}"
         index_uri = uris['index']
-        index_file = File.join(output_dir, index_uri[index_uri.rindex('/')+1..-1])
+        index_file = File.join(tracedir, index_uri[index_uri.rindex('/')+1..-1])
         if not File.exist? index_file
             puts "Download #{index_file}"
             `curl #{index_uri} -o #{index_file}`
         end
 
         trace_uri = uris['trace']
-        trace_file = File.join(output_dir, trace_uri[trace_uri.rindex('/')+1..-1])
+        trace_file = File.join(tracedir, trace_uri[trace_uri.rindex('/')+1..-1])
         trace_file_ = trace_file.gsub(".gz", "")
         if not File.exist? trace_file and not File.exist? trace_file_
             puts "Download #{trace_file}"
@@ -66,11 +66,12 @@ if $0 == __FILE__
         #puts stats.as.size
         #break
     end
+
     puts "[#{Time.now}] Start to output the results"
-    File.open("AS#{date}.txt", 'w') do |f|
+    File.open(File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{date}.txt"), 'w') do |f|
         stats.as.each { |asn| f.puts asn }
     end
-    File.open("ASLink#{date}.txt", 'w') do |f|
+    File.open(File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{date}.txt"), 'w') do |f|
         stats.as_links.each { |a,b| f.puts "#{a} #{b}" }
     end
     puts "[#{Time.now}] Program ends"

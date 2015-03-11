@@ -9,7 +9,9 @@ module TopoConfig
     IPLANE_DATA_DIR = File.join(DATA_DIR, "iplane")
     YAHOO_DATA_DIR = File.join(DATA_DIR, "yahoo")
 
-    OUTPUT_DIR = File.expand_path("output/")
+    OUTPUT_DIR = File.expand_path("./output/")
+    IPLANE_OUTPUT_DIR = File.join(OUTPUT_DIR, "iplane")
+    YAHOO_OUTPUT_DIR = File.join(OUTPUT_DIR, "yahoo")
 
     YAHOO_DATA_URI = "arvind3@afterbuilt.corp.yahoo.com:/home/parthak/collector/download/"
     IPLANE_DATA_URI = "http://iplane.cs.washington.edu/data/iplane_logs/"
@@ -19,5 +21,7 @@ module TopoConfig
         Dir.mkdir(IPLANE_DATA_DIR) if not Dir.exist?(IPLANE_DATA_DIR)
         Dir.mkdir(YAHOO_DATA_DIR) if not Dir.exist?(YAHOO_DATA_DIR)
         Dir.mkdir(OUTPUT_DIR) if not Dir.exist?(OUTPUT_DIR)
+        Dir.mkdir(IPLANE_OUTPUT_DIR) if not Dir.exist?(IPLANE_OUTPUT_DIR)
+        Dir.mkdir(YAHOO_OUTPUT_DIR) if not Dir.exist?(YAHOO_OUTPUT_DIR)
     end
 end
