@@ -13,7 +13,7 @@ void truncate_error(char *filename) {
 	exit(1);
 }
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     FILE *fp;
     int clientId, uniqueId, sz, len;

@@ -1,46 +1,53 @@
 require 'date'
 
+require_relative '../config.rb'
 require_relative 'traceroute.rb'
-
-def parse_filename fn
-    # first remove all the directory
-    fn = File.basename(fn)
-    # remove extension .gz .log
-    fn = File.basename(fn, File.extname(fn)) if fn.end_with? 'gz'
-    fn = File.basename(fn, File.extname(fn)) if fn.end_with? 'log'
-    # remove prefix
-    fn.gsub!("tracertagent-", "")
-    vp, timestr = fn.split('-')
-    vp.downcase!
-    time = DateTime.strptime(timestr, "%Y%m%d.%Hh%Mm%Ss")
-    return [vp, time]
-end
 
 # Abstract class
 class TracerouteFileReader
-    ReadOutFile = "./readoutfile/readoutfile_no_ntoa"
-    
     attr_reader :filename
     def initialize(filename)
         @filename = unzip(filename)
-        @vp, @date = parse_filename @filename
     end
 
     def unzip(filename)
+        
         if filename.end_with? '.gz'
-            `gzip -d #{filename}`
-            filename = filename[0...-3]
+            fn_ = filename.gsub('.gz', '')
+            if not File.exist? filename
+                # check if the file is already decompressed
+                raise "File #{filename} doesn't exist" if not File.exist? fn_
+                filename = fn_
+            else
+                `gzip -d #{filename}`
+                filename = fn_
+            end
         end
         filename
     end
 end
 
-class AsciiTracerouteFileReader < TracerouteFileReader
+class YahooTracerouteFileReader < TracerouteFileReader
     def initialize filename
         super(filename)
+        @vp, @date = parse_filename @filename
         @f = File.open(@filename)
         @next_destination = nil
-    end 
+    end
+
+    def parse_filename fn
+        # first remove all the directory
+        fn = File.basename(fn)
+        # remove extension .gz .log
+        fn = File.basename(fn, File.extname(fn)) if fn.end_with? 'gz'
+        fn = File.basename(fn, File.extname(fn)) if fn.end_with? 'log'
+        # remove prefix
+        fn.gsub!("tracertagent-", "")
+        vp, timestr = fn.split('-')
+        vp.downcase!
+        time = DateTime.strptime(timestr, "%Y%m%d.%Hh%Mm%Ss")
+        return [vp, time]
+    end
     
     # seek to a certain line
     def seek lno
@@ -81,7 +88,7 @@ class AsciiTracerouteFileReader < TracerouteFileReader
         # TODO(cs): add a link from the VP to the first hop.
         # TODO(cs): sanity check input.
         _, dstip, _, nhop = @next_destination.chomp.split
-        tr = Traceroute.new(dstip, nhop)
+        tr = Traceroute.new(dstip)
         while line = @f.gets
             line = line.chomp
             if line[0] == 'D'
@@ -91,9 +98,76 @@ class AsciiTracerouteFileReader < TracerouteFileReader
             #last_ip, last_lat, last_ttl = ip, lat, ttl
             # TODO(cs): figure out what the last entry is.
             _, _, ip, lat, ttl, timestamp = line.split
-            tr.append_hop(ip, lat, ttl, timestamp)
+            tr.append_hop(ip, lat.to_f, ttl.to_i, timestamp.to_i)
         end
         @next_destination = nil
         return tr
+    end
+end
+
+class IPlaneTracerouteFileReader < TracerouteFileReader
+    include TopoConfig
+
+    def initialize index_file, traceroute_file
+        super(traceroute_file)
+        @index_file = index_file
+        @next_destination = nil
+
+        if not File.exist? READ_OUT or not File.exist? READ_OUT_NO_NTOA
+            if not compile_readoutfile
+                raise "Could not compile readoutfile. Try manually?"
+            end
+        end
+    end 
+
+    def compile_readoutfile
+        ret = nil
+        Dir.chdir("readoutfile") do
+            ret = system("make")
+        end
+        ret
+    end
+
+    def each &block
+        destinations = []
+        File.open(@index_file).each_line { |line| destinations << line.split[0] }
+        #puts "loaded index file"
+        IO.popen("#{READ_OUT} #{@filename}") do |f|
+            index = 0
+            destinations.each do |destination|
+                line = f.gets
+                tr = parse_traceroute(line, destination)
+                block.call tr
+                index += 1
+            end
+        end
+    end
+
+    def parse_traceroute(line, destination)
+        hops = line.chomp.split
+        dst = hops.shift
+        if dst != destination
+            puts "Destination mismatch #{dst} <-> #{destination} (#{@filename})"
+            return
+        end
+
+        # destination = hops.shift
+        tr = Traceroute.new(dst)
+        ip, lat, ttl = nil, nil, nil
+        # TODO(cs): add a link from the VP to the first hop.
+        while not hops.empty?
+            if hops[0] == "*"
+                hops.shift
+                tr.append_hop('0.0.0.0', 0.0, 0, 0)
+            else
+                # TODO(cs): sanity check input.
+                ip, lat, ttl = hops.shift, hops.shift.to_f, hops.shift.to_i
+                tr.append_hop(ip, lat, ttl, 0)
+            end
+            # if not ip.nil? and not last_ip.nil?
+            #     @database.create_link(last_ip, ip, @vp, destination, ttl, lat)
+            # end
+        end
+        tr
     end
 end

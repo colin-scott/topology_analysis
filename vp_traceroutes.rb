@@ -81,13 +81,6 @@ class VPTraceroute
             parse_file(fn, offset)
             @parsed_files[fn] = -1
         end
-=begin
-because an iteration may not finish, there's some residue in the upcoming file
-        if not @curr_iter.nil?
-            log_iteration @curr_iter
-            @curr_iter = nil
-        end
-=end
     end
 
     def parse_all

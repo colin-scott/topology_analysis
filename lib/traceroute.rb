@@ -1,22 +1,25 @@
 
 class Traceroute
-    attr_reader :src, :dst, :nhop, :hops
-    def initialize(dst, nhop)
+    attr_reader :src, :dst, :hops
+    def initialize(dst)
         @dst = dst
-        @nhop = nhop.to_i
         @hops = Array.new 
         # each item: [ip, latency, ttl, timestamp]
     end
 
+    def nhop
+        @hops.size
+    end
+
     def valid?
-        v = false
+        flag = false
         @hops.each do |_,_,ttl,_|
             if ttl != 0
-                v = true
+                flag = true
                 break
             end
         end
-        v
+        flag
     end
 
     def start_time
@@ -24,7 +27,7 @@ class Traceroute
         while @hops[index][2] == 0
             index += 1
         end
-        @hops[index][3].to_i
+        @hops[index][3]
     end
 
     def end_time
@@ -32,11 +35,11 @@ class Traceroute
         while @hops[index][2] == 0
             index -= 1
         end
-        @hops[index][3].to_i
+        @hops[index][3]
     end
 
     def append_hop(ip, latency, ttl, timestamp)
-        @hops << [ip, latency, ttl.to_i, timestamp]
+        @hops << [ip, latency, ttl, timestamp]
     end
 
     # return true if the traceroute skips first a few hops
@@ -45,7 +48,7 @@ class Traceroute
     end
 
     def to_s
-        s = "D #{@dst} n #{@nhop}\n"
+        s = "D #{@dst} n #{nhop}\n"
         @hops.each_with_index { |val, i| s += "H #{i} #{val[0]} #{val[1]} #{val[2]} #{val[3]}\n" }
         s
     end
