@@ -36,7 +36,7 @@ if $0 == __FILE__
     tracedir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
     Dir.mkdir(tracedir) if not Dir.exist? tracedir
 
-    stats = Analysis.new [:AS, :ASLink]
+    stats = Analysis.new [:IP, :AS, :ASLink]
     targets = load_target_list
 
     puts "[#{Time.now}] Start the analysis on iPlane date"
@@ -57,7 +57,7 @@ if $0 == __FILE__
             `curl #{trace_uri} -o #{trace_file}`
         end
 
-        reader = IPlaneTracerouteFileReader.new(index_file, trace_file)
+        reader = IPlaneTRFileReader.new(index_file, trace_file)
         reader.each do |tr|
             if targets.include? tr.dst
                 stats.add tr
@@ -68,11 +68,17 @@ if $0 == __FILE__
     end
 
     puts "[#{Time.now}] Start to output the results"
-    File.open(File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{date}.txt"), 'w') do |f|
+    puts "#IP: #{stats.ip.size}"
+    puts "#IP_no_asn: #{stats.ip_no_asn.size}"
+    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{date}.txt")
+    File.open(fn, 'w') do |f|
         stats.as.each { |asn| f.puts asn }
     end
-    File.open(File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{date}.txt"), 'w') do |f|
+    puts "Output to #{fn}"
+    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{date}.txt")
+    File.open(fn, 'w') do |f|
         stats.as_links.each { |a,b| f.puts "#{a} #{b}" }
     end
+    puts "Output to #{fn}"
     puts "[#{Time.now}] Program ends"
 end

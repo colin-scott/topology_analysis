@@ -68,11 +68,15 @@ if $0 == __FILE__
     puts "[#{Time.now}] Start to output the results"
     puts "#IP: #{stats.ip.size}"
     puts "#IP_no_asn: #{stats.ip_no_asn.size}"
-    File.open(File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS#{date}.txt"), 'w') do |f|
+    fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS#{date}.txt")
+    File.open(fn, 'w') do |f|
         stats.as.each { |asn| f.puts asn }
     end
-    File.open(File.join(TopoConfig::YAHOO_OUTPUT_DIR, "ASLink#{date}.txt"), 'w') do |f|
+    puts "Output to #{fn}"
+    fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "ASLink#{date}.txt")
+    File.open(fn, 'w') do |f|
         stats.as_links.each { |a,b| f.puts "#{a} #{b}" }
     end
+    puts "Output to #{fn}"
     puts "[#{Time.now}] Program ends"
 end
