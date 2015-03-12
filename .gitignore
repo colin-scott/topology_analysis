@@ -2,3 +2,6 @@ readoutfile/readoutfile_no_ntoa
 readoutfile/readoutfile
 readoutfile/trace.*
 *.o
+data
+output
+*.swp

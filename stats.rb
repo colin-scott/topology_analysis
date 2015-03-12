@@ -19,6 +19,9 @@ class Stats
         @peer_as = Set.new
         @filepfx = nil
         @vp = nil
+        # tmp var
+        @prefix = nil
+        @min_skip_hops = 30
     end
 
     def load_iteration
@@ -51,10 +54,17 @@ class Stats
         iterlist = parse_targets targets
         # start the analysis
         iterlist.each { |iterid| analyze_iteration(iterid) }
+        puts "***************************"
+        @prefix.each do |ip,_,_,_|
+            asn = ASMapper.query_as_num ip
+            puts "#{ip}, #{asn}"
+        end
+        puts "Min skip hops: #{@min_skip_hops}"
+        return
         # write results to file
         write_summary iterlist.size
-        write_cdf("#{@filepfx}.iphop.csv", @ip_hops)
-        write_cdf("#{@filepfx}.ashop.csv", @as_hops)
+        write_hops("#{@filepfx}.iphop.csv", @ip_hops)
+        write_hops("#{@filepfx}.ashop.csv", @as_hops)
         write_peeras
         # clear results
         clear
@@ -94,8 +104,13 @@ class Stats
             while true
                 tr = reader.next_traceroute
                 break if tr.nil?
-                next if not tr.valid?
-                pass tr, vp_asn
+                if not tr.valid?
+                    puts tr.dst
+                    next
+                end
+                #next if not tr.valid?
+                first_hop tr
+                #pass tr, vp_asn
                 break if not ed_line.nil? and reader.lineno >= ed_line
             end
         end
@@ -125,9 +140,9 @@ class Stats
         file.close
     end
 
-    def write_cdf fn, hops
+    def write_hops fn, hops
         fn = File.join(TopoConfig::OUTPUT_DIR, fn)
-        puts "[#{Time.now}] Write to CDF file #{fn}"
+        puts "[#{Time.now}] Write to file #{fn}"
         File.open(fn, 'w') do |file|
             hops.keys.sort.each { |n| file.puts "#{n},#{hops[n]}" }
         end
@@ -155,6 +170,29 @@ class Stats
         result = `nslookup #{vp}`.split.compact[-1]
         ip = result.split(':')[-1].strip
         ASMapper.query_as_num ip
+    end
+
+    def first_hop tr
+        if tr.skip?
+            nskip = 0
+            while tr.hops[nskip][2] == 0
+                nskip += 1
+            end
+            @min_skip_hops = nskip if nskip < @min_skip_hops
+            
+            return
+        end
+        if @prefix.nil?
+            @prefix = tr.hops
+        else
+            index = 0
+            while true
+                break if @prefix[index][0] != tr.hops[index][0]
+                index += 1
+                break if index == @prefix.size
+            end
+            @prefix = @prefix[0...index]
+        end
     end
 
     def pass tr, vp_asn
@@ -201,6 +239,7 @@ if $0 == __FILE__
     stats = Stats.new
     while not ARGV.empty?
         targets = ARGV.shift
+        #stats.analyze targets
         stats.analyze targets
     end
 end

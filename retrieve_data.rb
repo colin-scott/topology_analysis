@@ -3,7 +3,7 @@ require 'optparse'
 require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
 
-def retrieve_yahoo(vp, start_date, end_date)
+def retrieve_yahoo(date)
     uri = TopoConfig::YAHOO_DATA_URI
     return if uri.nil?
     url, path = uri.split(':')
@@ -11,10 +11,8 @@ def retrieve_yahoo(vp, start_date, end_date)
     vpfiles = {}
     filelist.split.each do |fn|
         vp_name, time = parse_filename fn
-        date = time.strftime("%Y%m%d")
-        next if not vp.nil? and vp != vp_name
-        next if not start_date.nil? and date < start_date
-        next if not end_date.nil? and date > end_date
+        date_ = time.strftime("%Y%m%d")
+        next if date != date_
         vpfiles[vp_name] = [] if not vpfiles.has_key? vp_name
         vpfiles[vp_name] << fn
    end
