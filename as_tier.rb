@@ -41,6 +41,7 @@ if $0 == __FILE__
         fout.puts "#{asn}\t#{cnt}\t#{tier}"
     end
     fout.close
+    puts "Output to #{tierfile}"
 
     tierlinks = {
         [1,1]=> 0, [1,2]=> 0, [1,3]=> 0,
@@ -62,4 +63,5 @@ if $0 == __FILE__
         f.puts "Tier2\t#{tierlinks[[1,2]]}\t#{tierlinks[[2,2]]}\t#{tierlinks[[2,3]]}"
         f.puts "Tier3\t#{tierlinks[[1,3]]}\t#{tierlinks[[2,3]]}\t#{tierlinks[[3,3]]}"
     end
+    puts "Output to #{tierlinkfile}"
 end
