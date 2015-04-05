@@ -44,63 +44,69 @@ if $0 == __FILE__
         put "No duration is given."
         exit
     end
+
+    startdate = options[:start]
+    duration = options[:duration]
     
     numday = 0
-    while numday < options[:duration]
-    date = (options[:start] + numday).strftime("%Y%m%d")
-    numday += 1
-
-    tracelist = retrieve_iplane(date)
-    tracedir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
-    Dir.mkdir(tracedir) if not Dir.exist? tracedir
-
     stats = Analysis.new 
-    targets = load_target_list
 
-    puts "[#{Time.now}] Start the analysis on #{date}"
-    tracelist.each do |vp, uris|
-        puts "[#{Time.now}] Processing data from #{vp}"
-        index_uri = uris['index']
-        index_file = File.join(tracedir, index_uri[index_uri.rindex('/')+1..-1])
-        if not File.exist? index_file
-            puts "Download #{index_file}"
-            `curl #{index_uri} -o #{index_file}`
-        end
+    while numday < duration
+        date = (startdate + numday).strftime("%Y%m%d")
+        numday += 1
 
-        trace_uri = uris['trace']
-        trace_file = File.join(tracedir, trace_uri[trace_uri.rindex('/')+1..-1])
-        trace_file_ = trace_file.gsub(".gz", "")
-        if not File.exist? trace_file and not File.exist? trace_file_
-            puts "Download #{trace_file}"
-            `curl #{trace_uri} -o #{trace_file}`
-        end
+        tracelist = retrieve_iplane(date)
+        tracedir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
+        Dir.mkdir(tracedir) if not Dir.exist? tracedir
 
-        vp_url = File.basename(index_file).gsub("index.out.", "")
-        vp_ip = ASMapper.get_ip_from_url vp_url
-        vp_asn = ASMapper.query_asn vp_ip
-        if vp_asn.nil?
-            puts "#{vp_url}, #{vp_ip}"
-        end
+        targets = load_target_list
 
-        reader = IPlaneTRFileReader.new(index_file, trace_file)
-        reader.each do |tr|
-            if targets.include? tr.dst
-                tr.src = vp_ip
-                tr.src_asn = vp_asn
-                stats.add tr
+        puts "[#{Time.now}] Start the analysis on #{date}"
+        tracelist.each do |vp, uris|
+            puts "[#{Time.now}] Processing data from #{vp}"
+            index_uri = uris['index']
+            index_file = File.join(tracedir, index_uri[index_uri.rindex('/')+1..-1])
+            if not File.exist? index_file
+                puts "Download #{index_file}"
+                `curl #{index_uri} -o #{index_file}`
             end
+
+            trace_uri = uris['trace']
+            trace_file = File.join(tracedir, trace_uri[trace_uri.rindex('/')+1..-1])
+            trace_file_ = trace_file.gsub(".gz", "")
+            if not File.exist? trace_file and not File.exist? trace_file_
+                puts "Download #{trace_file}"
+                `curl #{trace_uri} -o #{trace_file}`
+            end
+
+            vp_url = File.basename(index_file).gsub("index.out.", "")
+            vp_ip = ASMapper.get_ip_from_url vp_url
+            vp_asn = ASMapper.query_asn vp_ip
+            if vp_asn.nil?
+                puts "#{vp_url}, #{vp_ip}"
+            end
+
+            reader = IPlaneTRFileReader.new(index_file, trace_file)
+            reader.each do |tr|
+                if targets.include? tr.dst
+                    tr.src = vp_ip
+                    tr.src_asn = vp_asn
+                    stats.add tr
+                end
+            end
+            #puts stats.as.size
+            #break
         end
-        #puts stats.as.size
-        #break
-    end
     end
 
     as_bfs = {}
+    output_date = "#{startdate.strftime("%Y%m%d")}_#{duration}d"
 
     puts "[#{Time.now}] Start to output the results"
+    puts "Duration: #{duration} days"
     puts "#IP: #{stats.ip.size}"
     puts "#IP_no_asn: #{stats.ip_no_asn.size}"
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{date}.txt")
+    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{output_date}.txt")
     File.open(fn, 'w') do |f|
         stats.as.each do |asn, nhop| 
             f.puts asn
@@ -110,13 +116,13 @@ if $0 == __FILE__
     end
 
     puts "Output to #{fn}"
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{date}.txt")
+    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{output_date}.txt")
     File.open(fn, 'w') do |f|
         stats.as_links.each { |a,b| f.puts "#{a} #{b}" }
     end
     puts "Output to #{fn}"
 
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASBFS#{date}.txt")
+    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASBFS#{output_date}.txt")
     File.open(fn, 'w') do |f|
         as_bfs.keys.sort.each do |nhop|
             asnlist = as_bfs[nhop]
