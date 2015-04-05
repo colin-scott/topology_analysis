@@ -82,11 +82,9 @@ class IPlaneTRFileReader < TRFileReader
         hops = line.chomp.split
         dst = hops.shift
         if dst != destination
-            puts "Destination mismatch #{dst} <-> #{destination} (#{@filename})"
-            return
+            #puts "Destination mismatch #{dst}(trace) <-> #{destination}(index) (#{@filename})"
+            #return
         end
-
-        # destination = hops.shift
         tr = Traceroute.new(dst)
         ip, lat, ttl = nil, nil, nil
         # TODO(cs): add a link from the VP to the first hop.

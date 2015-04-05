@@ -5,7 +5,7 @@ require_relative 'cache.rb'
 module ASMapper
     @cache = Cache.new
 
-    def self.extract_asn asn
+    def self.parse_asn asn
         # to make cache not caching nil, we use 0 to indicate nil
         return 0 if asn.empty?
         asn = asn.chomp
@@ -19,7 +19,7 @@ module ASMapper
         return asn.to_i
     end
 
-    def self.query_as_num ip
+    def self.query_asn ip
         asn = @cache.query ip
         if asn.nil?
             socks = TCPSocket.new "127.0.0.1", 5100
@@ -34,24 +34,30 @@ module ASMapper
                 counter += 1
                 retry if counter < 3
             end
-            asn = self.extract_asn ret
+            asn = self.parse_asn ret
             @cache.add ip, asn
         end
         # replace 0 by nil
         asn = nil if asn == 0
         asn
     end
+
+    def self.get_ip_from_url url
+        result = `nslookup #{url}`.split.compact[-1]
+        ip = result.split(':')[-1].strip
+        return ip
+    end
 end
 
 if $0 == __FILE__
     include ASMapper
-    puts extract_asn "7382_8058"
-    puts extract_asn "202112_3.5504"
-    puts extract_asn "3.5504_202112"
-    puts extract_asn "{20013,26512}"
-    puts extract_asn "9729_{64664,64665,64666,64667}"
-    puts extract_asn "{64664,64665,64666,64667}_9729"
+    puts parse_asn "7382_8058"
+    puts parse_asn "202112_3.5504"
+    puts parse_asn "3.5504_202112"
+    puts parse_asn "{20013,26512}"
+    puts parse_asn "9729_{64664,64665,64666,64667}"
+    puts parse_asn "{64664,64665,64666,64667}_9729"
 
-    puts ASMapper.query_as_num "8.8.8.8"
-    puts ASMapper.query_as_num "8.8.4.4"
+    puts ASMapper.query_asn "8.8.8.8"
+    puts ASMapper.query_asn "8.8.4.4"
 end

@@ -1,7 +1,10 @@
 
 class Traceroute
-    attr_reader :src, :dst, :hops
+    attr_accessor :src, :src_asn
+    attr_reader :dst, :hops
     def initialize(dst)
+        @src = nil
+        @src_asn = nil
         @dst = dst
         @hops = Array.new 
         # each item: [ip, latency, ttl, timestamp]
