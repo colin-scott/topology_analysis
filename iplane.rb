@@ -47,7 +47,8 @@ if $0 == __FILE__
 
     startdate = options[:start]
     duration = options[:duration]
-    
+    targets = load_target_list
+
     numday = 0
     stats = Analysis.new 
 
@@ -55,11 +56,9 @@ if $0 == __FILE__
         date = (startdate + numday).strftime("%Y%m%d")
         numday += 1
 
-        tracelist = retrieve_iplane(date)
         tracedir = File.join(TopoConfig::IPLANE_DATA_DIR, date)
         Dir.mkdir(tracedir) if not Dir.exist? tracedir
-
-        targets = load_target_list
+        tracelist = retrieve_iplane(date)
 
         puts "[#{Time.now}] Start the analysis on #{date}"
         tracelist.each do |vp, uris|
