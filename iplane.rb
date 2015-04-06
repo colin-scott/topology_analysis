@@ -94,46 +94,28 @@ if $0 == __FILE__
                 end
             end
             #puts stats.as.size
-            #break
         end
+
+        # start to snapshot the result
+        puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
+        output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
+
+        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{output_date}.txt")
+        stats.output_as fn
+        puts "Output to #{fn}"
+
+        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{output_date}.txt") 
+        stats.output_aslinks fn
+        puts "Output to #{fn}"
+
+        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASBFS#{output_date}.txt")
+        stats.output_as_bfs fn
+        puts "Output to #{fn}"
+ 
     end
 
-    as_bfs = {}
-    output_date = "#{startdate.strftime("%Y%m%d")}_#{duration}d"
-
-    puts "[#{Time.now}] Start to output the results"
-    puts "Duration: #{duration} days"
-    puts "#IP: #{stats.ip.size}"
-    puts "#IP_no_asn: #{stats.ip_no_asn.size}"
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{output_date}.txt")
-    File.open(fn, 'w') do |f|
-        stats.as.each do |asn, nhop| 
-            f.puts asn
-            as_bfs[nhop] = Set.new if not as_bfs.has_key? nhop
-            as_bfs[nhop] << asn
-        end
-    end
-
-    puts "Output to #{fn}"
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASLink#{output_date}.txt")
-    File.open(fn, 'w') do |f|
-        stats.as_links.each { |a,b| f.puts "#{a} #{b}" }
-    end
-    puts "Output to #{fn}"
-
-    fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASBFS#{output_date}.txt")
-    File.open(fn, 'w') do |f|
-        as_bfs.keys.sort.each do |nhop|
-            asnlist = as_bfs[nhop]
-            f.printf("%2d: %d\n", nhop, asnlist.size)
-        end
-        as_bfs.keys.sort.each do |nhop|
-            asnlist = as_bfs[nhop]
-            f.puts "--------------------- #{nhop} -----------------------"
-            asnlist.each { |asn| f.puts asn }
-        end
-    end
-    puts "Output to #{fn}"
-        
+    #puts "#IP: #{stats.ip.size}"
+    #puts "#IP_no_asn: #{stats.ip_no_asn.size}"
+       
     puts "[#{Time.now}] Program ends"
 end
