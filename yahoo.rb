@@ -49,7 +49,6 @@ if $0 == __FILE__
 
     startdate = options[:start]
     duration = options[:duration]
-    
     puts "Duration: #{duration} days"
 
     numday = 0

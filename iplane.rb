@@ -47,10 +47,11 @@ if $0 == __FILE__
 
     startdate = options[:start]
     duration = options[:duration]
-    targets = load_target_list
+    puts "Duration: #{duration} days"
 
     numday = 0
     stats = Analysis.new 
+    targets = load_target_list
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
