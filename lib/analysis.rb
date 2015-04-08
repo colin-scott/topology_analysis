@@ -166,16 +166,18 @@ class Analysis
             as_bfs[nhop] << asn
         end
 
-        File.open(fn, 'w') do |f|
+        File.open(fn, 'a') do |f|
             as_bfs.keys.sort.each do |nhop|
                 asnlist = as_bfs[nhop]
                 f.printf("%2d: %d\n", nhop, asnlist.size)
             end
+=begin
             as_bfs.keys.sort.each do |nhop|
                 asnlist = as_bfs[nhop]
                 f.puts "--------------------- #{nhop} -----------------------"
                 asnlist.each { |asn| f.puts asn }
             end
+=end
         end
     end
 end

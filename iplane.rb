@@ -50,7 +50,9 @@ if $0 == __FILE__
     puts "Duration: #{duration} days"
 
     numday = 0
-    stats = Analysis.new 
+    vp_stats = {}
+    vp_info = {}
+    #stats = Analysis.new 
     targets = load_target_list
 
     while numday < duration
@@ -63,6 +65,9 @@ if $0 == __FILE__
 
         puts "[#{Time.now}] Start the analysis on #{date}"
         tracelist.each do |vp, uris|
+            vp_stats[vp] = Analysis.new if not vp_stats.has_key? vp
+            stats = vp_stats[vp]
+
             puts "[#{Time.now}] Processing data from #{vp}"
             index_uri = uris['index']
             index_file = File.join(tracedir, index_uri[index_uri.rindex('/')+1..-1])
@@ -80,8 +85,14 @@ if $0 == __FILE__
             end
 
             vp_url = File.basename(index_file).gsub("index.out.", "")
-            vp_ip = ASMapper.get_ip_from_url vp_url
-            vp_asn = ASMapper.query_asn vp_ip
+            if vp_info.has_key? vp_url
+                vp_ip, vp_asn = vp_info[vp_url]
+            else
+                vp_ip = ASMapper.get_ip_from_url vp_url
+                vp_asn = ASMapper.query_asn vp_ip
+                vp_info[vp_url] = [vp_ip, vp_asn]
+            end
+            
             if vp_asn.nil?
                 puts "#{vp_url}, #{vp_ip}"
             end
@@ -101,6 +112,14 @@ if $0 == __FILE__
         puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
 
+        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS_VP_BFS#{output_date}.txt")
+        vp_stats.keys.sort.each do |vp|
+            stats = vp_stats[vp]
+            File.open(fn, 'a') { |f| f.puts "VP: #{vp} (#{vp_info[vp][0]}, AS#{vp_info[vp][1]})" }
+            stats.output_as_bfs fn
+        end
+        puts "Output to #{fn}"
+=begin
         fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS#{output_date}.txt")
         stats.output_as fn
         puts "Output to #{fn}"
@@ -112,7 +131,7 @@ if $0 == __FILE__
         fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "ASBFS#{output_date}.txt")
         stats.output_as_bfs fn
         puts "Output to #{fn}"
- 
+=end
     end
 
     #puts "#IP: #{stats.ip.size}"
