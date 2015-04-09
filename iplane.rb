@@ -3,7 +3,7 @@ require 'set'
 require_relative 'retrieve_data.rb'
 require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
-require_relative 'lib/analysis'
+require_relative 'lib/analysis.rb'
 
 def load_target_list
     targets = Set.new
@@ -112,11 +112,11 @@ if $0 == __FILE__
         puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
 
-        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS_VP_BFS#{output_date}.txt")
+        fn = File.join(TopoConfig::IPLANE_OUTPUT_DIR, "AS_VP_Distance_#{output_date}.txt")
         vp_stats.keys.sort.each do |vp|
             stats = vp_stats[vp]
             File.open(fn, 'a') { |f| f.puts "VP: #{vp} (#{vp_info[vp][0]}, AS#{vp_info[vp][1]})" }
-            stats.output_as_bfs fn
+            stats.output_as_distance fn
         end
         puts "Output to #{fn}"
 =begin

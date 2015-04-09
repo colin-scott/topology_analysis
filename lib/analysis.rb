@@ -1,6 +1,7 @@
 require 'set'
 
 require_relative '../config.rb'
+require_relative 'utilities.rb'
 require_relative 'traceroute_reader_util.rb'
 require_relative 'asmapper.rb'
 
@@ -38,15 +39,20 @@ class Analysis
         # generate as list
         tr.hops.each do |ip,_,ttl,_|
             if ttl == 0
+                # missing hop
                 astrace << nil
                 next
-            end
-            asn = ASMapper.query_asn ip
-            if asn.nil?
-                astrace << nil
-                @ip_no_asn << ip
+            elsif Inet::in_private_prefix_q? ip
+                # use -1 to indicate private IP addr
+                astrace << -1
             else
-                astrace << asn
+                asn = ASMapper.query_asn ip
+                if asn.nil?
+                    astrace << nil
+                    @ip_no_asn << ip
+                else
+                    astrace << asn
+                end
             end
         end
         astrace
@@ -61,20 +67,22 @@ class Analysis
         # assume tr.src_asn is not nil
         @as[tr.src_asn] = 0
 
-        astrace.each do |asn|
+        astrace.each_with_index do |asn, i|
             if asn.nil?
                 missing += 1
+            elsif asn == -1
+                # ignore private IP hop
+                next
             else
                 if asn != lastasn
-                    #puts "#{lastasn}, #{asn}" if missing == 1
-                    @as_links << [lastasn, asn] if missing <= 1
+                    #@as_links << [lastasn, asn] if missing <= 1
                     
                     # if missing ASN > 1, we consider an AS hop inside
-                    as_nhop += 1 if missing > 1
+                    as_nhop += 1 if missing > 0
                     # new AS hop detected
                     as_nhop += 1
-                    if not @as.has_key? asn or @as[asn] > as_nhop
-                        @as[asn] = as_nhop
+                    if not @as.has_key? asn or @as[asn][0] > as_nhop
+                        @as[asn] = [as_nhop, tr.hops[i][0]]
                     end
                 end
 
@@ -159,17 +167,26 @@ class Analysis
         end
     end
 
-    def output_as_bfs fn
-        as_bfs = {}
-        @as.each do |asn, nhop|
-            as_bfs[nhop] = Set.new if not as_bfs.has_key? nhop
-            as_bfs[nhop] << asn
+    def output_as_distance fn
+        as_dist = {}
+        @as.each do |asn, val|
+            nhop, ip = val
+            as_dist[nhop] = [] if not as_dist.has_key? nhop
+            as_dist[nhop] << asn
         end
 
         File.open(fn, 'a') do |f|
-            as_bfs.keys.sort.each do |nhop|
-                asnlist = as_bfs[nhop]
+            as_dist.keys.sort.each do |nhop|
+                asnlist = as_dist[nhop]
                 f.printf("%2d: %d\n", nhop, asnlist.size)
+            end
+            if as_dist.has_key? 1
+                neighbors = as_dist[1]
+                f.puts "Neighbors"
+                neighbors.sort.each do |asn|
+                    ip = @as[asn][1]
+                    f.puts "#{asn}: #{ip}"
+                end
             end
 =begin
             as_bfs.keys.sort.each do |nhop|

@@ -329,7 +329,15 @@ module Inet
   #end
 
 
-  $PRIVATE_PREFIXES=[["192.168.0.0",16], ["10.0.0.0",8], ["127.0.0.0",8], ["172.16.0.0",12], ["169.254.0.0",16], ["224.0.0.0",4], ["0.0.0.0",8]]
+  $PRIVATE_PREFIXES=[
+    ["192.168.0.0",16,3232235520], 
+    ["10.0.0.0",8,167772160], 
+    ["127.0.0.0",8,2130706432], 
+    ["172.16.0.0",12,2886729728], 
+    ["169.254.0.0",16,2851995648], 
+    ["224.0.0.0",4,3758096384], 
+    ["0.0.0.0",8,0]
+  ]
 
   def Inet::ntoa( intaddr )
     ((intaddr >> 24) & 255).to_s + '.' + ((intaddr >> 16) & 255).to_s + '.'  + ((intaddr >> 8) & 255).to_s + '.' + (intaddr & 255).to_s
@@ -356,6 +364,24 @@ module Inet
     ip=Inet::aton(ip) if  ip.is_a?(String) and ip.include?(".")
     $PRIVATE_PREFIXES.each do |prefix|
       return true if Inet::aton(prefix.at(0))==Inet::prefix(ip,prefix.at(1))
+    end
+    return false
+  end
+
+  def Inet::aton_q(ip)
+    # skip the check
+    ints = ip.split(".").collect{|x| x.to_i}
+    val = 0
+    ints.each{ |n| val = (val << 8) + n }
+    return val
+  end
+
+  def Inet::in_private_prefix_q?(ip)
+    ip = Inet::aton_q(ip)
+    $PRIVATE_PREFIXES.each do |prefix|
+      length = prefix.at(1)
+      ip_pref = ((ip >> (32-length)) << (32-length))
+      return true if prefix.at(2) == ip_pref
     end
     return false
   end

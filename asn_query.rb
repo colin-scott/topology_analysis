@@ -1,4 +1,5 @@
 require_relative "lib/asmapper.rb"
+require_relative "lib/utilities.rb"
 
 if $0 == __FILE__
     if ARGV.size == 0
@@ -6,10 +7,14 @@ if $0 == __FILE__
         exit
     end
     ip = ARGV[0]
-    asn = ASMapper.query_asn ip
-    if asn.nil?
-        puts "ASN not found."
-    else
-        puts asn
+    if Inet::in_private_prefix_q? ip
+        puts "#{ip} is a private IP address"
+    else 
+        asn = ASMapper.query_asn ip
+        if asn.nil?
+            puts "ASN not found."
+        else
+            puts asn
+        end
     end
 end
