@@ -1,13 +1,12 @@
 
 class Traceroute
-    attr_accessor :src, :src_asn
+    attr_accessor :src_ip, :src_asn
     attr_reader :dst, :hops
     def initialize(dst)
-        @src = nil
+        @src_ip = nil
         @src_asn = nil
         @dst = dst
-        @hops = Array.new 
-        # each item: [ip, latency, ttl, timestamp]
+        @hops = Array.new # each item: [ip, latency, ttl, timestamp]
     end
 
     def nhop

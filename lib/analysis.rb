@@ -5,36 +5,36 @@ require_relative 'utilities.rb'
 require_relative 'traceroute_reader_util.rb'
 require_relative 'asmapper.rb'
 
-class Analysis
+class ASAnalysis
   
     attr_accessor :yahoo_aslist
-    attr_reader :ip, :as, :ip_links, :as_links, :ip_nhops, :as_nhops, :ip_no_asn
+    attr_reader :as_dist, :as_links, :ip_no_asn
 
     def initialize
         # stats info
-        @ip = Set.new
-        @as = {} # ASN => #the shortest hops to reach it
-        @ip_links = Set.new
+        @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = Set.new
-        @ip_nhops = {}
-        @as_nhops = {}
-
         @ip_no_asn = Set.new
         @yahoo_aslist = nil
     end
 
     def reset
-        @ip.clear
-        @as.clear
-        @ip_links.clear
+        @as_dist.clear
         @as_links.clear
-        @ip_nhops.clear
-        @as_nhops.clear
-
         @ip_no_asn.clear
     end
 
-    def generate_as_trace tr
+    def merge(stats)
+        stats.as_dist.each do |asn, val|
+            dist, ip = val
+            if not @as_dist.has_key? asn or @as_dist[asn][0] > dist
+                @as_dist[asn] = val
+            end
+        end
+        @as_links.merge(stats.as_links)
+    end
+
+    def generate_as_trace(tr)
         astrace = []
         # generate as list
         tr.hops.each do |ip,_,ttl,_|
@@ -58,14 +58,14 @@ class Analysis
         astrace
     end
 
-    def add tr
+    def add_iplane tr
         astrace = generate_as_trace tr
         lastasn = tr.src_asn
         missing = 0
         as_nhop = 0
         
         # assume tr.src_asn is not nil
-        @as[tr.src_asn] = 0
+        @as_dist[tr.src_asn] = [0, tr.src_ip]
 
         astrace.each_with_index do |asn, i|
             if asn.nil?
@@ -75,34 +75,22 @@ class Analysis
                 next
             else
                 if asn != lastasn
-                    #@as_links << [lastasn, asn] if missing <= 1
-                    
+                    @as_links << [lastasn, asn] if missing == 0
+
+                    # update AS distance 
                     # if missing ASN > 1, we consider an AS hop inside
                     as_nhop += 1 if missing > 0
                     # new AS hop detected
                     as_nhop += 1
-                    if not @as.has_key? asn or @as[asn][0] > as_nhop
-                        @as[asn] = [as_nhop, tr.hops[i][0]]
+                    if not @as_dist.has_key?(asn) or @as_dist[asn][0] > as_nhop
+                        @as_dist[asn] = [as_nhop, tr.hops[i][0]]
                     end
                 end
-
                 lastasn = asn
                 missing = 0
             end
         end
-=begin
-        lastip = nil
-        tr.hops.each_with_index do |item, index|
-            ip,_,ttl,_ = item
-            ip = nil if ttl == 0
-            if not ip.nil?
-                @ip << ip if ttl != 0
-                #ip_links << [lastip, ip] if not lastip.nil?
-            end
-            lastip = ip
-       end
-=end
-    end
+   end
 
     def add_yahoo tr
         astrace = generate_as_trace tr
@@ -111,104 +99,81 @@ class Analysis
         as_nhop = 0
         
         # assume tr.src_asn is not nil
-        @as[tr.src_asn] = 0
+        @as_dist[tr.src_asn] = [0, tr.src_ip]
 
-        astrace.each do |asn|
+        astrace.each_with_index do |asn, i|
             if asn.nil?
                 missing += 1
+            elsif asn == -1
+                # ignore private IP hop
+                next
             else
                 if asn != lastasn
-                    #puts "#{lastasn}, #{asn}" if missing == 1
-                    @as_links << [lastasn, asn] if missing <= 1
+                    @as_links << [lastasn, asn] if missing == 0
                     
+                    # update AS distance
                     if as_nhop == 0 and @yahoo_aslist.include? asn
                         # still consider at AS hop 0
                         # don't incrase as_nhop
-                        @as[asn] = 0
+                        @as_dist[asn] = [0, tr.hops[i][0]]
                     else
                         # if missing ASN > 1, we consider an AS hop inside
-                        as_nhop += 1 if missing > 1
+                        as_nhop += 1 if missing > 0
                         # new AS hop detected
                         as_nhop += 1
-                        if not @as.has_key? asn or @as[asn] > as_nhop
-                            @as[asn] = as_nhop
+                        if not @as_dist.has_key?(asn) or @as_dist[asn][0] > as_nhop
+                            @as_dist[asn] = [as_nhop, tr.hops[i][0]]
                         end
                     end
                 end
-
                 lastasn = asn
                 missing = 0
             end
         end
-
-=begin
-        lastip = nil
-        tr.hops.each_with_index do |item, index|
-            ip,_,ttl,_ = item
-            ip = nil if ttl == 0
-            if not ip.nil?
-                @ip << ip if ttl != 0
-                #ip_links << [lastip, ip] if not lastip.nil?
-            end
-            lastip = ip
-       end
-=end
     end
 
-    def output_as fn
+    def output_as(fn)
         File.open(fn, 'w') do |f|
-            @as.each { |asn, _| f.puts asn }
+            f.puts("# ASN distance")
+            @as_dist.each { |asn, val| f.puts "#{asn} #{val[0]}" }
         end
     end
 
-    def output_aslinks fn
+    def output_aslinks(fn)
         File.open(fn, 'w') do |f|
             @as_links.each { |a,b| f.puts "#{a} #{b}" }
         end
     end
 
-    def output_as_distance fn
-        as_dist = {}
-        @as.each do |asn, val|
-            nhop, ip = val
-            as_dist[nhop] = [] if not as_dist.has_key? nhop
-            as_dist[nhop] << asn
+    def output_as_distance(fn, neighbor=false)
+        distance = {}
+        sum = 0
+        @as_dist.each do |asn, val|
+            dist, ip = val
+            sum += dist
+            distance[dist] = [] if not distance.has_key?(dist)
+            distance[dist] << asn
         end
+        avg_dist = sum.to_f / @as_dist.size
 
         File.open(fn, 'a') do |f|
-            as_dist.keys.sort.each do |nhop|
-                asnlist = as_dist[nhop]
-                f.printf("%2d: %d\n", nhop, asnlist.size)
+            f.printf("Average Distance: %.2f\n", avg_dist)
+            distance.keys.sort.each do |dist|
+                asnlist = distance[dist]
+                f.printf("%2d: %d\n", dist, asnlist.size)
             end
-            if as_dist.has_key? 1
-                neighbors = as_dist[1]
-                f.puts "Neighbors"
-                neighbors.sort.each do |asn|
-                    ip = @as[asn][1]
-                    f.puts "#{asn}: #{ip}"
+            if neighbor
+                # output all the neighbors
+                if distance.has_key?(1)
+                    neighbors = distance[1]
+                    f.puts "Neighbors:"
+                    neighbors.sort.each do |asn|
+                        ip = @as_dist[asn][1]
+                        f.puts "  #{asn}: #{ip}"
+                    end
                 end
             end
-=begin
-            as_bfs.keys.sort.each do |nhop|
-                asnlist = as_bfs[nhop]
-                f.puts "--------------------- #{nhop} -----------------------"
-                asnlist.each { |asn| f.puts asn }
-            end
-=end
         end
     end
 end
 
-if $0 == __FILE__
-    if ARGV.size == 0
-        puts "Usage: #{File.basename($0)} <iteration> [<iteration>...]"
-        puts "    <iteration>\t\tsingle iteration id, e.g., 1"
-        puts "\t\t\titeration range, e.g., \"2-3\", \"4-7,9-10\" (for aggregation analysis)"
-        exit
-    end
-    stats = Stats.new
-    while not ARGV.empty?
-        targets = ARGV.shift
-        stats.analyze targets
-    end
-end
