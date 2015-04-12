@@ -13,6 +13,55 @@ def get_mean_std arr
     return [mean, std]
 end
 
+class LatencyInfo
+    attr_reader :latency, :prev_ip, :mean, :std, :std_sub
+    def initialize
+        @latency = {}
+        @prev_ip = {}
+        @mean = {}
+        @std = {}
+        @std_sub = {}
+    end
+
+    def record_size ip
+        return @latency[ip].size
+    end
+
+    def insert ip, prev, lat
+        @latency[ip] = [] if not @latency.has_key? ip
+        @prev_ip[ip] = {} if not @prev_ip.has_key? ip
+        @latency[ip] << lat
+        if not prev.nil?
+            if @prev_ip[ip].has_key? prev
+                @prev_ip[ip][prev] += 1
+            else
+                @prev_ip[ip][prev] = 1
+            end
+        end
+    end
+
+    def generate_mean_std
+        @latency.each do |ip, lats| 
+            next if lats.size < 100
+            mean, std = get_mean_std lats
+            @mean[ip] = mean
+            @std[ip] = std
+        end
+    end
+
+    def subtract_prevhop prev_lat_info
+        @std.each do |ip, std|
+            total = @latency[ip].size
+            @prev_ip[ip].each do |prev, cnt|
+                if prev_lat_info.std.has_key? prev
+                    std -= (prev_lat_info.std[prev] * cnt / prev_lat_info.record_size(prev))
+                end
+            end
+            @std_sub[ip] = std
+        end
+    end
+end
+
 if $0 == __FILE__
     options = {}
     optparse = OptionParser.new do |opts|
@@ -20,6 +69,7 @@ if $0 == __FILE__
         opts.on("-s", "--start DATE", "Specify the start date (format: 20150101)") do |start|
             options[:start] = Date.parse(start)
         end
+=begin
         options[:duration] = nil
         opts.on("-d", "--duration DURATION", "Sepcify the duration of days (format: 1d, 5d, 1w)") do |duration|
             if duration.end_with?('d')
@@ -31,6 +81,7 @@ if $0 == __FILE__
                 exit
             end
         end
+=end
         opts.on("-h", "--help", "Prints this help") do 
             puts opts
             exit
@@ -40,30 +91,27 @@ if $0 == __FILE__
     if options[:start].nil?
         puts "No start date is given."
         exit
-    elsif options[:duration].nil?
-        put "No duration is given."
-        exit
+    #elsif options[:duration].nil?
+    #    put "No duration is given."
+    #    exit
     end
 
     startdate = options[:start]
-    duration = options[:duration]
-    puts "Duration: #{duration} days"
+    #duration = options[:duration]
+    #puts "Duration: #{duration} days"
 
-    numday = 0
+    #numday = 0
 
-    while numday < duration
-        date = (startdate + numday).strftime("%Y%m%d")
-        numday += 1
+    #while numday < duration
+        date = (startdate).strftime("%Y%m%d")
+        #numday += 1
 
         tracelist = retrieve_yahoo(date)
         tracedir = TopoConfig::YAHOO_DATA_DIR
 
         puts "[#{Time.now}] Start the analysis on #{date}"
-        hop_latency = [{}, {}, {}, {}, {}]
-        vp_url = nil
         tracelist.each do |vp, filelist|
             puts "[#{Time.now}] Processing data from #{vp}"
-            vp_url = vp
 
             filelist.each do |fn|
                 localfn = File.join(tracedir, fn)
@@ -75,40 +123,71 @@ if $0 == __FILE__
             end
             filelist.map! { |fn| fn = File.join(tracedir, fn) }
 
+            
+            info_per_hop = {
+                0 => LatencyInfo.new,
+                1 => LatencyInfo.new,
+                2 => LatencyInfo.new,
+                3 => LatencyInfo.new,
+                4 => LatencyInfo.new,
+            }
+
             reader = YahooTRFileReader.new filelist
             # record only first 5 hop latency
             reader.each do |tr|
+                lastip = nil
                 tr.hops.each_with_index do |row, i|
                     break if i > 4
                     ip, lat, ttl, _ = row
-                    iplatency = hop_latency[i]
                     if ttl != 0
-                        iplatency[ip] = [] if not iplatency.has_key? ip
-                        iplatency[ip] << lat
+                        latinfo = info_per_hop[i]
+                        latinfo.insert(ip, lastip, lat)
+                    else
+                        ip = nil
+                    end
+                    lastip = ip
+                end
+            end
+            
+            info_per_hop.each do |hop, latinfo|
+                latinfo.generate_mean_std
+                latinfo.subtract_prevhop(info_per_hop[hop-1]) if hop > 1
+            end
+
+            # start to snapshot the result
+            puts "[#{Time.now}] Start to snapshot the results"
+            outprefix = "#{vp}_#{startdate.strftime("%Y%m%d")}"
+
+            fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "#{outprefix}.txt")
+            File.open(fn, 'w') do |f|
+                info_per_hop.each do |hop, latinfo|
+                    f.puts "=============== Hop #{hop+1} ================"
+                    if hop <= 1
+                        f.puts "IP\tcount\tmean\tstd"
+                        latinfo.mean.each do |ip, mean|
+                            cnt = latinfo.record_size(ip)
+                            std = latinfo.std[ip]
+                            f.puts "#{ip}\t#{cnt}\t#{mean}\t#{std}"
+                        end
+                    else
+                        f.puts "IP\tcount\tmean\tstd\tstd subtract"
+                        latinfo.mean.each do |ip, mean|
+                            cnt = latinfo.record_size(ip)
+                            std = latinfo.std[ip]
+                            std_sub = latinfo.std_sub[ip]
+                            f.puts "#{ip}\t#{cnt}\t#{mean}\t#{std}\t#{std_sub}"
+                            latinfo.prev_ip[ip].each do |prev, n|
+                                f.printf("# %s %d\n", prev, n)
+                            end
+                        end
                     end
                 end
             end
-            # for now only test on one vp
-            break
+            puts "Output to #{fn}"
+            break 
         end
-
-        # start to snapshot the result
-        puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
-        outprefix = "#{vp_url}_#{startdate.strftime("%Y%m%d")}_#{numday}d"
-
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "#{outprefix}.txt")
-        File.open(fn, 'w') do |f|
-            hop_latency.each_with_index do |ip_latency, i|
-                f.puts "=============== Hop #{i} ================"
-                f.puts "IP\tcount\tmean\tstd"
-                ip_latency.each do |ip, lats|
-                    mean, std = get_mean_std lats
-                    f.puts "#{ip}\t#{lats.size}\t#{mean}\t#{std}"
-                end
-            end
-        end
-        puts "Output to #{fn}"
-    end
+        #break
+    #end
 
     #puts "#IP: #{stats.ip.size}"
     #puts "#IP_no_asn: #{stats.ip_no_asn.size}"

@@ -23,7 +23,7 @@ if $0 == __FILE__
             options[:start] = Date.parse(start)
         end
         options[:duration] = nil
-        opts.on("-d", "--duration DURATION", "Sepcify the duration of days (format: 1d, 5d, 1w)") do |duration|
+        opts.on("-d", "--duration DURATION", "Sepcify the duration of days/weeks (format: 1d, 5d, 1w)") do |duration|
             if duration.end_with?('d')
                 options[:duration] = duration.chomp('d').to_i
             elsif duration.end_with?('w')
@@ -53,8 +53,10 @@ if $0 == __FILE__
 
     numday = 0
     yahoo_aslist = load_yahoo_aslist
-    stats = Analysis.new
-    stats.yahoo_aslist = yahoo_aslist
+
+    overall_stats = ASAnalysis.new(yahoo_aslist)
+    vp_stats = {}
+    vp_info = {}
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
@@ -65,6 +67,9 @@ if $0 == __FILE__
 
         puts "[#{Time.now}] Start the analysis on #{date}"
         tracelist.each do |vp, filelist|
+            vp_stats[vp] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp)
+            stats = vp_stats[vp]
+
             puts "[#{Time.now}] Processing data from #{vp}"
 
             filelist.each do |fn|
@@ -77,8 +82,17 @@ if $0 == __FILE__
             end
             filelist.map! { |fn| fn = File.join(tracedir, fn) }
 
-            vp_ip = ASMapper.get_ip_from_url vp
-            vp_asn = ASMapper.query_asn vp_ip
+            if vp_info.has_key?(vp)
+                vp_ip, vp_asn = vp_info[vp_url]
+            else
+                vp_ip = ASMapper.get_ip_from_url(vp)
+                vp_asn = ASMapper.query_asn(vp_ip)
+                vp_info[vp] = [vp_ip, vp_asn]
+            end
+
+            if vp_asn.nil?
+                puts "#{vp}, #{vp_ip}"
+            end
 
             reader = YahooTRFileReader.new filelist
             firsthop = nil
@@ -89,31 +103,40 @@ if $0 == __FILE__
                 elsif tr.hops[0][2] == 0
                     tr.hops[0] = firsthop
                 end
-                tr.src = vp_ip
+                tr.src_ip = vp_ip
                 tr.src_asn = vp_asn
-                stats.add_yahoo tr
+                stats.add_yahoo(tr)
             end
+            # merge vp AS stats into overall stats
+            overall_stats.merge(stats)
         end
     
         # start to snapshot the result
         puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS#{output_date}.txt")
-        stats.output_as fn
+        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_#{output_date}.txt")
+        overall_stats.output_as(fn)
         puts "Output to #{fn}"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "ASLink#{output_date}.txt") 
-        stats.output_aslinks fn
+        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_Links_#{output_date}.txt") 
+        overall_stats.output_aslinks(fn)
         puts "Output to #{fn}"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "ASBFS#{output_date}.txt")
-        stats.output_as_bfs fn
+        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_Distance_#{output_date}.txt")
+        File.delete(fn) if File.exist?(fn)
+        overall_stats.output_as_distance(fn)
+        puts "Output to #{fn}"
+
+        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_VP_Distance_#{output_date}.txt")
+        File.delete(fn) if File.exist?(fn)
+        vp_stats.keys.sort.each do |vp|
+            stats = vp_stats[vp]
+            File.open(fn, 'a') { |f| f.puts("VP: #{vp} (#{vp_info[vp][0]}, AS#{vp_info[vp][1]})") }
+            stats.output_as_distance(fn, true)
+        end
         puts "Output to #{fn}"
     end
 
-    #puts "#IP: #{stats.ip.size}"
-    #puts "#IP_no_asn: #{stats.ip_no_asn.size}"
-    
     puts "[#{Time.now}] Program ends"
 end

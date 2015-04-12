@@ -10,12 +10,12 @@ class ASAnalysis
     attr_accessor :yahoo_aslist
     attr_reader :as_dist, :as_links, :ip_no_asn
 
-    def initialize
+    def initialize(yahoo_aslist=nil)
         # stats info
         @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = Set.new
         @ip_no_asn = Set.new
-        @yahoo_aslist = nil
+        @yahoo_aslist = yahoo_aslist
     end
 
     def reset

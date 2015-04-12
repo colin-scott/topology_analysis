@@ -50,10 +50,11 @@ if $0 == __FILE__
     puts "Duration: #{duration} days"
 
     numday = 0
+    targets = load_target_list
+
     overall_stats = ASAnalysis.new
     vp_stats = {}
     vp_info = {}
-    targets = load_target_list
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
@@ -105,6 +106,7 @@ if $0 == __FILE__
                     stats.add_iplane(tr)
                 end
             end
+            # merge vp AS stats into overall stats
             overall_stats.merge(stats)
         end
 
