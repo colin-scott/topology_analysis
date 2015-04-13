@@ -11,32 +11,28 @@ if $0 == __FILE__
     asfile = ARGV[0]
     aslinkfile = ARGV[1]
 
-    as_degree = {}
-    test = {}
+    as_peers = {}
     File.open(asfile).each_line do |line| 
         next if line.start_with?('#')
         asn = line.split[0].to_i
-        as_degree[asn] = 0
+        as_peers[asn] = Set.new
     end
-    aslinks = Set.new
     File.open(aslinkfile).each_line do |line|
         a, b = line.chomp.split
         a = a.to_i
         b = b.to_i
         next if a == b
-        if not aslinks.include?([a,b])
-            as_degree[a] += 1
-            as_degree[b] += 1
-            aslinks << [a,b]
-            aslinks << [b,a]
-        end
+        as_peers[a] << b 
+        as_peers[b] << a
     end
 
-    astiers = {}
-    tierfile = asfile.sub("AS", "AS_Tier")
-    fout = File.open(tierfile, 'w')
+    as_degree = {}
+    as_tiers = {}
+    as_peers.each { |asn, peers| as_degree[asn] = peers.size }
     sorted = as_degree.sort_by { |asn, cnt| cnt }.reverse
 
+    tierfile = asfile.sub("AS", "AS_Tier")
+    fout = File.open(tierfile, 'w')
     fout.puts "ASN\t#Links\tTier\n"
     sorted.each do |asn, cnt|
         if cnt >= TIER1
@@ -46,7 +42,7 @@ if $0 == __FILE__
         else
             tier = 3
         end
-        astiers[asn] = tier
+        as_tiers[asn] = tier
         fout.puts "#{asn}\t#{cnt}\t#{tier}"
     end
     fout.close
@@ -57,7 +53,7 @@ if $0 == __FILE__
         [2,2]=> 0, [2,3]=> 0, [3,3]=> 0,
         }
     tierlinkfile = asfile.sub("AS", "Tier_Links")
-    aslinks.clear
+    aslinks = Set.new
     File.open(aslinkfile).each_line do |line|
         a, b = line.chomp.split
         a = a.to_i
@@ -66,8 +62,8 @@ if $0 == __FILE__
         if not aslinks.include?([a,b])
             aslinks << [a,b]
             aslinks << [b,a]
-            min = [astiers[a], astiers[b]].min
-            max = [astiers[a], astiers[b]].max
+            min = [as_tiers[a], as_tiers[b]].min
+            max = [as_tiers[a], as_tiers[b]].max
             tierlinks[[min, max]] += 1
         end
     end
@@ -79,4 +75,8 @@ if $0 == __FILE__
         f.puts "Tier3\t\t\t#{tierlinks[[3,3]]}"
     end
     puts "Output to #{tierlinkfile}"
+
+    File.open("AS3356.txt", 'w') do |f|
+        as_peers[3356].sort.each { |asn| f.puts(asn) }
+    end
 end
