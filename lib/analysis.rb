@@ -8,19 +8,22 @@ require_relative 'asmapper.rb'
 class ASAnalysis
   
     attr_accessor :yahoo_aslist
-    attr_reader :as_dist, :as_links, :ip_no_asn
+    attr_reader :as_dist, :as_links, :target_dist, :ip_no_asn
 
     def initialize(yahoo_aslist=nil)
         # stats info
         @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = Set.new
+        @target_dist = []
         @ip_no_asn = Set.new
+
         @yahoo_aslist = yahoo_aslist
     end
 
     def reset
         @as_dist.clear
         @as_links.clear
+        @target_dist.clear
         @ip_no_asn.clear
     end
 
@@ -32,6 +35,7 @@ class ASAnalysis
             end
         end
         @as_links.merge(stats.as_links)
+        @target_dist.merge(stats.as_links)
     end
 
     def generate_as_trace(tr)

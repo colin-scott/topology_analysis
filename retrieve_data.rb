@@ -30,7 +30,7 @@ def retrieve_iplane(date)
     html.each_line do |line|
         next if not line.start_with? '<li>'
         if line.include? 'trace.out'
-            fn = line[line.index('"')+1...line.rindex('"')]
+            fn = line[line.index('"')+1...line.rindex('"')].strip
             vp_name = fn.gsub("trace.out.", "").gsub(".gz", "")
             vpfiles[vp_name] = {} if not vpfiles.has_key? vp_name
             vpfiles[vp_name]['trace'] = uri + fn

@@ -66,6 +66,11 @@ if $0 == __FILE__
 
         puts "[#{Time.now}] Start the analysis on #{date}"
         tracelist.each do |vp, uris|
+            if vp == "planetlab-4.eecs.cwru.edu"
+                puts "Skip the broken node #{vp}"
+                next
+            end
+
             vp_stats[vp] = ASAnalysis.new if not vp_stats.has_key? vp
             stats = vp_stats[vp]
 
@@ -85,17 +90,16 @@ if $0 == __FILE__
                 `curl #{trace_uri} -o #{trace_file}`
             end
 
-            vp_url = File.basename(index_file).gsub("index.out.", "")
-            if vp_info.has_key? vp_url
-                vp_ip, vp_asn = vp_info[vp_url]
+            if vp_info.has_key?(vp)
+                vp_ip, vp_asn = vp_info[vp]
             else
-                vp_ip = ASMapper.get_ip_from_url vp_url
-                vp_asn = ASMapper.query_asn vp_ip
-                vp_info[vp_url] = [vp_ip, vp_asn]
+                vp_ip = ASMapper.get_ip_from_url(vp)
+                vp_asn = ASMapper.query_asn(vp_ip)
+                vp_info[vp] = [vp_ip, vp_asn]
             end
             
             if vp_asn.nil?
-                puts "#{vp_url}, #{vp_ip}"
+                puts "#{vp}, #{vp_ip}"
             end
 
             reader = IPlaneTRFileReader.new(index_file, trace_file)
