@@ -59,6 +59,28 @@ def retrieve_iplane(date)
     vpfiles
 end
 
+def download_iplane_data(date, uris)
+    tracedir = File.join(IPLANE_DATA_DIR, date)
+    Dir.mkdir(tracedir) if not Dir.exist? tracedir
+
+    index_uri = uris['index']
+    index_file = File.join(tracedir, index_uri[index_uri.rindex('/')+1..-1])
+    if not File.exist? index_file
+        puts "Download #{index_file}"
+        `curl #{index_uri} -o #{index_file}`
+    end
+
+    trace_uri = uris['trace']
+    trace_file = File.join(tracedir, trace_uri[trace_uri.rindex('/')+1..-1])
+    trace_file_ = trace_file.gsub(".gz", "")
+    if not File.exist? trace_file and not File.exist? trace_file_
+        puts "Download #{trace_file}"
+        `curl #{trace_uri} -o #{trace_file}`
+    end
+
+    return [index_file, trace_file]
+end
+
 if $0 == __FILE__
     options = {}
     optparse = OptionParser.new do |opts|
