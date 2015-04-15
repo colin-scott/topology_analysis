@@ -55,24 +55,15 @@ if $0 == __FILE__
         numday += 1
 
         tracelist = retrieve_yahoo(date)
-        tracedir = YAHOO_DATA_DIR
-
         puts "[#{Time.now}] Start the analysis on #{date}"
+
         tracelist.each do |vp, filelist|
             vp_stats[vp] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp)
             stats = vp_stats[vp]
 
             puts "[#{Time.now}] Processing data from #{vp}"
 
-            filelist.each do |fn|
-                localfn = File.join(tracedir, fn)
-                localfn_ = localfn.gsub(".gz", "")
-                next if File.exist? localfn or File.exist? localfn_
-                remote_uri = YAHOO_DATA_URI + fn
-                puts "[#{Time.now}] Downloading #{fn}"
-                `scp #{remote_uri} #{tracedir}`
-            end
-            filelist.map! { |fn| fn = File.join(tracedir, fn) }
+            filelist = download_yahoo_data(filelist)
 
             if vp_info.has_key?(vp)
                 vp_ip, vp_asn = vp_info[vp]
