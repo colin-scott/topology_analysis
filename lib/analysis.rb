@@ -8,7 +8,7 @@ require_relative 'asmapper.rb'
 class ASAnalysis
   
     attr_accessor :yahoo_aslist
-    attr_reader :as_dist, :as_links, :target_dist, :ip_no_asn
+    attr_reader :as_dist, :as_links, :tr_dist, :ip_no_asn
 
     def initialize(yahoo_aslist=nil)
         # stats info
@@ -135,13 +135,13 @@ class ASAnalysis
         end
     end
 
-    def count_as_hops_iplane tr
+    def count_as_hops tr
         return if tr.hops[-1][0] != tr.dst
 
         astrace = generate_as_trace tr
         lastasn = tr.src_asn
         missing = 0
-        as_hops = 1 # source AS
+        as_hops = 0
 
         astrace.each_with_index do |asn, i|
             if asn.nil?
@@ -151,10 +151,15 @@ class ASAnalysis
                 next
             else
                 if asn != lastasn
-                    # if missing ASN > 1, we consider an AS hop inside
-                    as_hops += 1 if missing > 0
-                    # new AS hop detected
-                    as_hops += 1
+                    if as_hops == 0 and not @yahoo_aslist.nil? and @yahoo_aslist.include?(asn)
+                        # don't increase as_hops since it's still inside Yahoo
+                        nil
+                    else
+                        # if missing ASN > 1, we consider an AS hop inside
+                        as_hops += 1 if missing > 0
+                        # new AS hop detected
+                        as_hops += 1
+                    end
                 end
                 lastasn = asn
                 missing = 0
@@ -162,11 +167,13 @@ class ASAnalysis
         end
         # missing ASN at the last
         as_hops += 1 if missing > 0
+        # add 1 to include the source AS
+        as_hops += 1
 
-        if as_hops == 1
-            puts "#{tr.dst} (hops: #{as_hops})"
-            astrace.each_with_index { |asn, i| puts "#{i} #{tr.hops[i][0]} #{asn}" }
-        end
+        #if as_hops == 1
+        #    puts "#{tr.dst} (hops: #{as_hops})"
+        #    astrace.each_with_index { |asn, i| puts "#{i} #{tr.hops[i][0]} #{asn}" }
+        #end
 
         @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
         @tr_dist[as_hops] += 1

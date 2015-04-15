@@ -5,15 +5,7 @@ require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
 require_relative 'lib/analysis'
 
-def load_yahoo_aslist
-    aslist = Set.new
-    File.open('yahoo_asns.csv').each do |line|
-        next if not line =~ /^\d/
-        asn = line.split(',')[1].to_i
-        aslist << asn if asn < 64496 # don't include private asn
-    end
-    aslist
-end
+include TopoConfig
 
 if $0 == __FILE__
     options = {}
@@ -63,7 +55,7 @@ if $0 == __FILE__
         numday += 1
 
         tracelist = retrieve_yahoo(date)
-        tracedir = TopoConfig::YAHOO_DATA_DIR
+        tracedir = YAHOO_DATA_DIR
 
         puts "[#{Time.now}] Start the analysis on #{date}"
         tracelist.each do |vp, filelist|
@@ -76,14 +68,14 @@ if $0 == __FILE__
                 localfn = File.join(tracedir, fn)
                 localfn_ = localfn.gsub(".gz", "")
                 next if File.exist? localfn or File.exist? localfn_
-                remote_uri = TopoConfig::YAHOO_DATA_URI + fn
+                remote_uri = YAHOO_DATA_URI + fn
                 puts "[#{Time.now}] Downloading #{fn}"
                 `scp #{remote_uri} #{tracedir}`
             end
             filelist.map! { |fn| fn = File.join(tracedir, fn) }
 
             if vp_info.has_key?(vp)
-                vp_ip, vp_asn = vp_info[vp_url]
+                vp_ip, vp_asn = vp_info[vp]
             else
                 vp_ip = ASMapper.get_ip_from_url(vp)
                 vp_asn = ASMapper.query_asn(vp_ip)
@@ -115,20 +107,20 @@ if $0 == __FILE__
         puts "[#{Time.now}] Start to snapshot the results for #{numday} days"
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_#{output_date}.txt")
+        fn = File.join(YAHOO_OUTPUT_DIR, "AS_#{output_date}.txt")
         overall_stats.output_as(fn)
         puts "Output to #{fn}"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_Links_#{output_date}.txt") 
+        fn = File.join(YAHOO_OUTPUT_DIR, "AS_Links_#{output_date}.txt") 
         overall_stats.output_aslinks(fn)
         puts "Output to #{fn}"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_Distance_#{output_date}.txt")
+        fn = File.join(YAHOO_OUTPUT_DIR, "AS_Distance_#{output_date}.txt")
         File.delete(fn) if File.exist?(fn)
         overall_stats.output_as_distance(fn)
         puts "Output to #{fn}"
 
-        fn = File.join(TopoConfig::YAHOO_OUTPUT_DIR, "AS_VP_Distance_#{output_date}.txt")
+        fn = File.join(YAHOO_OUTPUT_DIR, "AS_VP_Distance_#{output_date}.txt")
         File.delete(fn) if File.exist?(fn)
         vp_stats.keys.sort.each do |vp|
             stats = vp_stats[vp]

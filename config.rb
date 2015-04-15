@@ -10,6 +10,7 @@ module TopoConfig
     DATA_DIR = File.expand_path("./data")
     IPLANE_DATA_DIR = File.join(DATA_DIR, "iplane")
     YAHOO_DATA_DIR = File.join(DATA_DIR, "yahoo")
+    YAHOO_AS_LIST_FILE = File.join(DATA_DIR, "yahoo_asns.csv")
 
     OUTPUT_DIR = File.expand_path("./output/")
     IPLANE_OUTPUT_DIR = File.join(OUTPUT_DIR, "iplane")
@@ -29,5 +30,15 @@ module TopoConfig
         Dir.mkdir(OUTPUT_DIR) if not Dir.exist?(OUTPUT_DIR)
         Dir.mkdir(IPLANE_OUTPUT_DIR) if not Dir.exist?(IPLANE_OUTPUT_DIR)
         Dir.mkdir(YAHOO_OUTPUT_DIR) if not Dir.exist?(YAHOO_OUTPUT_DIR)
+    end
+
+    def load_yahoo_aslist
+        aslist = Set.new
+        File.open(YAHOO_AS_LIST_FILE).each do |line|
+            next if not line =~ /^\d/
+            asn = line.split(',')[1].to_i
+            aslist << asn if asn < 64496 # don't include private asn
+        end
+        aslist
     end
 end

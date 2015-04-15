@@ -3,8 +3,10 @@ require 'optparse'
 require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
 
+include TopoConfig
+
 def retrieve_yahoo(date)
-    uri = TopoConfig::YAHOO_DATA_URI
+    uri = YAHOO_DATA_URI
     return if uri.nil?
     url, path = uri.split(':')
     filelist = `ssh #{url} 'ls #{path}'`
@@ -19,12 +21,25 @@ def retrieve_yahoo(date)
    vpfiles
 end
 
+def download_yahoo_data(filelist)
+    filelist.each do |fn|
+        localfn = File.join(YAHOO_DATA_DIR, fn)
+        localfn_ = localfn.gsub(".gz", "")
+        next if File.exist? localfn or File.exist? localfn_
+        remote_uri = YAHOO_DATA_URI + fn
+        puts "[#{Time.now}] Downloading #{fn}"
+        `scp #{remote_uri} #{YAHOO_DATA_DIR}`
+    end
+    filelist.map! { |fn| fn = File.join(YAHOO_DATA_DIR, fn) }
+    return filelist
+end
+
 def retrieve_iplane(date)
     year = date[0...4]
     month = date[4...6]
     day = date[6...8]
 
-    uri = TopoConfig::IPLANE_DATA_URI + "#{year}/#{month}/#{day}/"
+    uri = IPLANE_DATA_URI + "#{year}/#{month}/#{day}/"
     html = `curl #{uri}`
     vpfiles = {}
     html.each_line do |line|
