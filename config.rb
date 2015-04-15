@@ -1,3 +1,5 @@
+require 'set'
+
 module TopoConfig
     # ITERATION_FILE = File.join(OUTPUT_DIR, "iterations.csv")
     READ_OUT = File.expand_path("readoutfile/readoutfile")
@@ -15,6 +17,10 @@ module TopoConfig
 
     YAHOO_DATA_URI = "arvind3@afterbuilt.corp.yahoo.com:/home/parthak/collector/download/"
     IPLANE_DATA_URI = "http://iplane.cs.washington.edu/data/iplane_logs/"
+
+    IPLANE_BLACKLIST = Set.new [
+        "planetlab-4.eecs.cwru.edu",
+    ]
     
     begin
         Dir.mkdir(DATA_DIR) if not Dir.exist?(DATA_DIR)
