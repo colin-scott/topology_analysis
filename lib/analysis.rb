@@ -8,15 +8,16 @@ require_relative 'asmapper.rb'
 class ASAnalysis
   
     attr_accessor :yahoo_aslist
-    attr_reader :as_dist, :as_links, :tr_dist, :ip_no_asn
+    attr_reader :as_dist, :as_links, :tr_dist, :tr_churn, :ip_no_asn
 
     def initialize(yahoo_aslist=nil)
         # stats info
         @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = Set.new
         @tr_dist = {} # AS hops => count
-        @ip_no_asn = Set.new
+        @tr_churn = {} # [src,dst] => AS traces
 
+        @ip_no_asn = Set.new
         @yahoo_aslist = yahoo_aslist
     end
 
@@ -45,7 +46,6 @@ class ASAnalysis
             if ttl == 0
                 # missing hop
                 astrace << nil
-                next
             elsif Inet::in_private_prefix_q? ip
                 # use -1 to indicate private IP addr
                 astrace << -1
@@ -59,6 +59,48 @@ class ASAnalysis
                 end
             end
         end
+        astrace
+    end
+
+    def generate_as_trace_compact(tr)
+        astrace = [tr.src_asn]
+        lastasn = tr.src_asn
+        missing = 0
+        #puts "- #{tr.dst}"
+        tr.hops.each do |ip,_,ttl,_|
+            if ttl == 0
+                # missing hop
+                missing += 1
+                #puts ip
+            elsif Inet::in_private_prefix_q?(ip)
+                # ignore the private IP
+                next
+                #puts ip
+            else
+                asn = ASMapper.query_asn(ip)
+                if asn.nil?
+                    missing += 1
+                else
+                    if asn != lastasn
+                        astrace << nil if missing > 0
+                        astrace << asn
+                    end
+                    lastasn = asn
+                    missing = 0
+                end
+                #puts "#{ip} #{asn}"
+            end
+        end
+        
+        #astrace.each_with_index do |asn, i|
+        #    if i == 0
+        #        print "#{asn}"
+        #    else
+        #        print "->#{asn}"
+        #    end
+        #end
+        #puts
+
         astrace
     end
 
@@ -177,6 +219,93 @@ class ASAnalysis
 
         @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
         @tr_dist[as_hops] += 1
+    end
+
+    def churn_collect(tr)
+        return if tr.hops[-1][0] != tr.dst
+        astrace = generate_as_trace_compact(tr)
+        if not @yahoo_aslist.nil?
+            merge = 0
+            i = 1
+            while i < @yahoo_aslist.size and @yahoo_aslist.include?(astrace[i])
+                merge += 1
+                i += 1
+            end
+            as_hops = astrace.size - merge
+        else
+            as_hops = astrace.size
+        end
+        @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
+        @tr_dist[as_hops] += 1
+
+        if @tr_churn.has_key?([tr.src_ip, tr.dst])
+            @tr_churn[[tr.src_ip, tr.dst]] << astrace
+        else
+            @tr_churn[[tr.src_ip, tr.dst]] = Set.new([astrace])
+        end
+    end
+
+    def compare_as_traces(tr1, tr2)
+        pt1 = 0
+        pt2 = 0
+        skip1 = false
+        skip2 = false
+        while pt1 < tr1.size and pt2 < tr2.size
+            if tr1[pt1] == tr2[pt2]
+                pt1 += 1
+                pt2 += 1
+                skip1 = false
+                skip2 = false
+            else
+                if tr1[pt1].nil?
+                    pt1 += 1
+                    skip1 = true
+                elsif tr2[pt2].nil?
+                    pt2 += 1
+                    skip2 = true
+                else
+                    # tr1[pt1] and tr2[pt2] are not nil
+                    if skip1
+                        pt2 += 1
+                        skip1 = false
+                    elsif skip2
+                        pt1 += 1
+                        skip2 = false
+                    else
+                        return false
+                    end
+                end
+            end
+        end
+
+        return false if tr1.size - pt1 > 1
+        return false if tr1.size - pt1 == 1 and not skip2
+        return false if tr2.size - pt2 > 1
+        return false if tr2.size - pt2 == 1 and not skip1
+        return true
+    end
+    
+    # return:
+    #   0: traceroute doesn't reach the dst
+    #   1: (src,dst) is not contained
+    #   2: as traces is different from existing traces
+    #   3: as traces is contained
+    def churn_compare(tr)
+        return 0 if tr.hops[-1][0] != tr.dst
+        return 1 if not @tr_churn.has_key?([tr.src_ip, tr.dst])
+        astrace = generate_as_trace_compact(tr)
+        traces = @tr_churn[[tr.src_ip, tr.dst]]
+        if traces.include?(astrace)
+            return 3
+        else
+            traces.each do |t|
+                return 3 if compare_as_traces(t, astrace)
+            end
+            puts "(#{tr.src_ip}, #{tr.dst})"
+            puts astrace.join("->")
+            traces.each { |t| puts "- #{t.join("->")}" }
+            return 2
+        end
     end
 
     def output_as(fn)
