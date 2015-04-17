@@ -36,7 +36,7 @@ class ASAnalysis
             else
                 if @as_dist[asn][0] > dist
                     @as_dist[asn] = val
-                elsif @as_dist[asn][1] == dist
+                elsif @as_dist[asn][0] == dist
                     @as_dist[asn][1] += cnt
                 # else => keep current
                 end

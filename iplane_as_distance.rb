@@ -46,7 +46,6 @@ if $0 == __FILE__
     numday = 0
     targets = load_target_list
 
-    #overall_stats = ASAnalysis.new
     vp_stats = {}
     vp_info = {}
 
@@ -55,8 +54,10 @@ if $0 == __FILE__
         numday += 1
 
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
-        fn = File.join(IPLANE_OUTPUT_DIR, "as_distance_#{output_date}.txt")
-        File.delete(fn) if File.exist?(fn)
+        dist_fn = File.join(IPLANE_OUTPUT_DIR, "as_distance_#{output_date}.txt")
+        File.delete(dist_fn) if File.exist?(dist_fn)
+
+        links_fn = File.join(IPLANE_OUTPUT_DIR, "as_links_#{output_date}.txt")
 
         tracelist = retrieve_iplane(date)
         puts "[#{Time.now}] Start the analysis on #{date}"
@@ -95,17 +96,22 @@ if $0 == __FILE__
 
                 tr.src_ip = vp_ip
                 tr.src_asn = vp_asn
-                stats.count_as_distance(tr)
+                stats.count_as(tr)
             end
-            # merge vp AS stats into overall stats
-            #overall_stats.merge(stats)
 
-            File.open(fn, 'a') do |f|
+            # start to output AS distance
+            File.open(dist_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
             end
-            stats.output_as_distance(fn, true)
+            stats.output_as_distance(dist_fn, true)
         end
-        puts "Output to #{fn}"
+        puts "Output to #{dist_fn}"
+
+        # merge vp AS stats into overall stats
+        overall_stats = ASAnalysis.new
+        vp_stats.each { |vp, stats| overall_stats.merge(stats) }
+        overall_stats.output_aslinks(links_fn)
+        puts "Output to #{links_fn}"
     end
 
     puts "[#{Time.now}] Program ends"
