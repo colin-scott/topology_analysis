@@ -13,7 +13,7 @@ class ASAnalysis
     def initialize(yahoo_aslist=nil)
         # stats info
         @as_dist = {} # ASN => [#the shortest distance, IP address]
-        @as_links = Set.new
+        @as_links = {} # [as1, as2] => count
         @tr_dist = {} # AS hops => count
         @tr_churn = {} # [src,dst] => AS traces
 
@@ -104,13 +104,25 @@ class ASAnalysis
         astrace
     end
 
-    def add_iplane tr
+    def update_as_distance(asn, dist)
+        if not @as_dist.has_key?(asn)
+            @as_dist[asn] = [dist, 1]
+        else
+            if @as_dist[asn][0] > dist
+                @as_dist[asn] = [dist, 1]
+            elsif @as_dist[asn][0] == dist
+                @as_dist[asn][1] += 1
+            end
+        end
+    end
+
+    def count_as_distance tr
         astrace = generate_as_trace tr
         lastasn = tr.src_asn
         missing = 0
-        as_nhop = 0
+        as_hops = 0
         # assume tr.src_asn is not nil
-        @as_dist[tr.src_asn] = [0, tr.src_ip]
+        #@as_dist[tr.src_asn] = [0, tr.]
 
         astrace.each_with_index do |asn, i|
             if asn.nil?
@@ -120,15 +132,17 @@ class ASAnalysis
                 next
             else
                 if asn != lastasn
-                    @as_links << [lastasn, asn] if missing == 0
-
+                    #@as_links << [lastasn, asn] if missing == 0
                     # update AS distance 
-                    # if missing ASN > 1, we consider an AS hop inside
-                    as_nhop += 1 if missing > 0
-                    # new AS hop detected
-                    as_nhop += 1
-                    if not @as_dist.has_key?(asn) or @as_dist[asn][0] > as_nhop
-                        @as_dist[asn] = [as_nhop, tr.hops[i][0]]
+                    if as_hops == 0 and not @yahoo_aslist.nil? and @yahoo_aslist.include?(asn)
+                        # for yahoo only: still consider at hop 0 since it's still within Yahoo
+                        update_as_distance(asn, 0)
+                    else
+                        # if missing ASN > 1, we consider an AS hop inside
+                        as_hops += 1 if missing > 0
+                        # new AS hop detected
+                        as_hops += 1
+                        update_as_distance(asn, as_hops)
                     end
                 end
                 lastasn = asn
@@ -344,8 +358,8 @@ class ASAnalysis
                     neighbors = distance[1]
                     f.puts "Neighbors:"
                     neighbors.sort.each do |asn|
-                        ip = @as_dist[asn][1]
-                        f.puts "  #{asn}: #{ip}"
+                        cnt = @as_dist[asn][1]
+                        f.puts "  #{asn}: #{cnt}"
                     end
                 end
             end
