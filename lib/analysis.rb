@@ -30,13 +30,25 @@ class ASAnalysis
 
     def merge(stats)
         stats.as_dist.each do |asn, val|
-            dist, ip = val
-            if not @as_dist.has_key? asn or @as_dist[asn][0] > dist
+            dist, cnt = val
+            if not @as_dist.has_key?(asn)
                 @as_dist[asn] = val
+            else
+                if @as_dist[asn][0] > dist
+                    @as_dist[asn] = val
+                elsif @as_dist[asn][1] == dist
+                    @as_dist[asn][1] += cnt
+                # else => keep current
+                end
             end
         end
-        @as_links.merge(stats.as_links)
-        @target_dist.merge(stats.as_links)
+        stats.as_links.each do |link, cnt|
+            if @as_links.has_key?(link)
+                @as_links[link] += cnt
+            else
+                @as_links[link] = cnt
+            end
+        end
     end
 
     def generate_as_trace(tr)
@@ -116,7 +128,7 @@ class ASAnalysis
         end
     end
 
-    def count_as_distance tr
+    def count_as tr
         astrace = generate_as_trace tr
         lastasn = tr.src_asn
         missing = 0
@@ -132,7 +144,12 @@ class ASAnalysis
                 next
             else
                 if asn != lastasn
-                    #@as_links << [lastasn, asn] if missing == 0
+                    if missing == 0
+                        link = [lastasn, asn].sort
+                        @as_links[link] = 0 if not @as_links.has_key?(link)
+                        @as_links[link] += 1
+                    end
+
                     # update AS distance 
                     if as_hops == 0 and not @yahoo_aslist.nil? and @yahoo_aslist.include?(asn)
                         # for yahoo only: still consider at hop 0 since it's still within Yahoo
@@ -143,46 +160,6 @@ class ASAnalysis
                         # new AS hop detected
                         as_hops += 1
                         update_as_distance(asn, as_hops)
-                    end
-                end
-                lastasn = asn
-                missing = 0
-            end
-        end
-    end
-
-    def add_yahoo tr
-        astrace = generate_as_trace tr
-        lastasn = tr.src_asn
-        missing = 0
-        as_nhop = 0
-        
-        # assume tr.src_asn is not nil
-        @as_dist[tr.src_asn] = [0, tr.src_ip]
-
-        astrace.each_with_index do |asn, i|
-            if asn.nil?
-                missing += 1
-            elsif asn == -1
-                # ignore private IP hop
-                next
-            else
-                if asn != lastasn
-                    @as_links << [lastasn, asn] if missing == 0
-                    
-                    # update AS distance
-                    if as_nhop == 0 and @yahoo_aslist.include? asn
-                        # still consider at AS hop 0
-                        # don't incrase as_nhop
-                        @as_dist[asn] = [0, tr.hops[i][0]]
-                    else
-                        # if missing ASN > 1, we consider an AS hop inside
-                        as_nhop += 1 if missing > 0
-                        # new AS hop detected
-                        as_nhop += 1
-                        if not @as_dist.has_key?(asn) or @as_dist[asn][0] > as_nhop
-                            @as_dist[asn] = [as_nhop, tr.hops[i][0]]
-                        end
                     end
                 end
                 lastasn = asn
@@ -331,7 +308,9 @@ class ASAnalysis
 
     def output_aslinks(fn)
         File.open(fn, 'w') do |f|
-            @as_links.each { |a,b| f.puts "#{a} #{b}" }
+            @as_links.each do |link, cnt|
+                f.puts "#{link[0]},#{link[1]}: #{cnt}"
+            end
         end
     end
 
