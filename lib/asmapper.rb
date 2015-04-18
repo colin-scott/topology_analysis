@@ -43,8 +43,18 @@ module ASMapper
     end
 
     def self.get_ip_from_url url
-        result = `nslookup #{url}`.split.compact[-1]
-        ip = result.split(':')[-1].strip
+        times = 0
+        while true
+            result = `nslookup #{url}`.split.compact[-1]
+            ip = result.split(':')[-1].strip
+            if /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})?$/.match(ip) == nil
+                ip = nil
+                times += 1
+                break if times > 3
+            else
+                break
+            end
+        end
         return ip
     end
 end

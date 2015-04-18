@@ -3,7 +3,7 @@ require 'set'
 require_relative 'retrieve_data.rb'
 require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
-require_relative 'lib/analysis.rb'
+require_relative 'lib/astrace.rb'
 
 include TopoConfig
 
@@ -46,18 +46,9 @@ if $0 == __FILE__
     numday = 0
     targets = load_target_list
 
-    vp_stats = {}
-    vp_info = {}
-
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
         numday += 1
-
-        output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
-        dist_fn = File.join(IPLANE_OUTPUT_DIR, "as_distance_#{output_date}.txt")
-        File.delete(dist_fn) if File.exist?(dist_fn)
-
-        links_fn = File.join(IPLANE_OUTPUT_DIR, "as_links_#{output_date}.txt")
 
         tracelist = retrieve_iplane(date)
         puts "[#{Time.now}] Start the analysis on #{date}"
@@ -68,50 +59,17 @@ if $0 == __FILE__
                 next
             end
 
-            if vp_info.has_key?(vp)
-                vp_ip, vp_asn = vp_info[vp]
-            else
-                vp_ip = ASMapper.get_ip_from_url(vp)
-                vp_asn = ASMapper.query_asn(vp_ip)
-                vp_info[vp] = [vp_ip, vp_asn]
-            end
-            
-            if vp_asn.nil?
-                puts "#{vp}, #{vp_ip}"
-            end
-
             puts "[#{Time.now}] Processing data from #{vp}"
-            vp_stats[vp] = ASAnalysis.new if not vp_stats.has_key? vp
-            stats = vp_stats[vp]
 
+            firsthop = nil
             index_file, trace_file = download_iplane_data(date, uris)
             reader = IPlaneTRFileReader.new(index_file, trace_file)
-            firsthop = nil
-            reader.each do |tr|
-                next if not targets.include? tr.dst
-                next if tr.hops.size == 0
+            output = trace_file.sub('trace.out', 'astrace').sub('.gz', '')
 
-                firsthop = tr.hops[0] if firsthop.nil? and tr.hops[0][2] != 0
-                tr.hops[0] = firsthop if not firsthop.nil? and tr.hops[0][2] == 0
-
-                tr.src_ip = vp_ip
-                tr.src_asn = vp_asn
-                stats.count_as(tr)
-            end
-
-            # start to output AS distance
-            File.open(dist_fn, 'a') do |f|
-                f.puts "VP: #{vp}"
-            end
-            stats.output_as_distance(dist_fn, true)
-        end
-        puts "Output to #{dist_fn}"
-
-        # merge vp AS stats into overall stats
-        overall_stats = ASAnalysis.new
-        vp_stats.each { |vp, stats| overall_stats.merge(stats) }
-        overall_stats.output_aslinks(links_fn)
-        puts "Output to #{links_fn}"
+            puts "[#{Time.now}] Converting #{trace_file}"
+            convert_to_as_trace(reader, output, firsthop, targets)
+            puts "[#{Time.now}] Output AS trace file #{output}"
+       end
     end
 
     puts "[#{Time.now}] Program ends"
