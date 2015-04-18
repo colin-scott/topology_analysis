@@ -108,21 +108,8 @@ end
 class AsciiTRFileReader < TRFileReader
     def initialize filename
         super(filename)
-        #@vp, @date = parse_filename @filename
-        #@f = File.open(@filename)
     end
         
-    # seek to a certain line
-    #def seek lno
-    #    lno.times { @f.gets }
-    #    @lno = lno
-    #end
-
-    #def lineno
-    #    return nil if @f.nil?
-    #    return @f.lineno
-    #end
-
     def each &block
         # Next destination is the first line:
         # D 8.8.8.8 n 14
