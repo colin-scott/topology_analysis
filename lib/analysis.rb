@@ -8,10 +8,13 @@ require_relative 'asmapper.rb'
 class ASAnalysis
   
     attr_accessor :yahoo_aslist
-    attr_reader :as_dist, :as_links, :tr_dist, :tr_churn, :ip_no_asn
+    attr_reader :tr_total, :reached, :as_dist, :as_links, 
+                :tr_dist, :tr_churn, :ip_no_asn
 
     def initialize(yahoo_aslist=nil)
         # stats info
+        @tr_total = 0
+        @reached = 0
         @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = {} # [as1, as2] => count
         @tr_dist = {} # AS hops => count
@@ -22,13 +25,18 @@ class ASAnalysis
     end
 
     def reset
+        @tr_total = 0
+        @reached = 0
         @as_dist.clear
         @as_links.clear
-        @target_dist.clear
+        @tr_dist.clear
+        @tr_churn.clear
         @ip_no_asn.clear
     end
 
     def merge(stats)
+        @tr_total += stats.tr_total
+        @reached += stats.reached
         stats.as_dist.each do |asn, val|
             dist, cnt = val
             if not @as_dist.has_key?(asn)
@@ -129,6 +137,7 @@ class ASAnalysis
     end
 
     def count_as astrace
+        @tr_total += 1
         lastasn = astrace.src_asn
         missing = 0
         as_hops = 0
@@ -174,6 +183,7 @@ class ASAnalysis
         as_hops += 1
         
         if astrace.reached
+            @reached += 1
             @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
             @tr_dist[as_hops] += 1
         end

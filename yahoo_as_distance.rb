@@ -69,40 +69,42 @@ if $0 == __FILE__
             vp_ip, vp_asn = vp_info[vp]
 
             puts "[#{Time.now}] Processing data from #{vp}"
-            vp_stats[vp_asn] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp_asn)
-            stats = vp_stats[vp_asn]
+            vp_stats[vp_asn] = [vp, ASAnalysis.new(yahoo_aslist)] if not vp_stats.has_key?(vp_asn)
+            _, stats = vp_stats[vp_asn]
+            vp_stats[vp_asn][0] = vp # update the vp url
 
             astrace_filelist = get_yahoo_astrace_filelist(filelist, vp_ip)
             reader = ASTraceReader.new(astrace_filelist)
-            tr_total = 0
             reader.each do |astrace|
-                tr_total += 1
                 astrace.src_asn = vp_asn
                 stats.count_as(astrace)
             end
+        end
+        
+        # merge vp AS stats into overall stats
+        overall_stats = ASAnalysis.new(yahoo_aslist)
+        vp_stats.each do |asn, val| 
+            vp, stats = val
             # output AS distance
             File.open(dist_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
-                f.puts "ASN: #{vp_asn}"
+                f.puts "ASN: #{asn}"
             end
             stats.output_as_distance(dist_fn, true)
             # output traceroute AS distance
             File.open(ashops_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
-                f.puts "ASN: #{vp_asn}"
-                f.puts "Total traceroute: #{tr_total}"
-                reached = 0
-                stats.tr_dist.each { |_, cnt| reached += cnt }
-                f.puts "Total reached traceroute: #{reached}"
+                f.puts "ASN: #{asn}"
+                f.puts "Total traceroute: #{stats.tr_total}"
+                f.puts "Total reached traceroute: #{stats.reached}"
             end
             stats.output_tr_distance(ashops_fn)
+
+            overall_stats.merge(stats)
         end
         puts "Output to #{dist_fn}"
         puts "Output to #{ashops_fn}"
 
-        # merge vp AS stats into overall stats
-        overall_stats = ASAnalysis.new(yahoo_aslist)
-        vp_stats.each { |_, stats| overall_stats.merge(stats) }
         overall_stats.output_as(as_fn)
         puts "Output to #{as_fn}"
         overall_stats.output_aslinks(links_fn)
