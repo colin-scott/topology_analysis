@@ -2,6 +2,7 @@ require 'optparse'
 
 require_relative 'config.rb'
 require_relative 'lib/traceroute_reader_util.rb'
+require_relative 'lib/astrace.rb'
 
 include TopoConfig
 
@@ -79,6 +80,32 @@ def download_iplane_data(date, uris)
     end
 
     return [index_file, trace_file]
+end
+
+def get_yahoo_astrace_filelist(remote_filelist)
+    local_filelist = download_yahoo_data(remote_filelist)
+    astrace_filelist = []
+    firsthop = nil
+    local_filelist.each do |fn|
+        reader = AsciiTRFileReader.new(fn)
+        output = fn.sub('tracertagent', 'astrace').sub('.gz', '')
+        firsthop = convert_to_as_trace(reader, output, firsthop)
+        astrace_filelist << output
+        puts "[#{Time.now}] Converted #{fn} to AS tracefile #{output}"
+    end
+    astrace_filelist
+end
+
+def get_iplane_astrace_file(date, uris)
+    index_file, trace_file = download_iplane_data(date, uris)
+    astrace_file = trace_file.sub("trace.out", 'astrace').sub('.gz', '')
+    if not File.exist?(astrace_file)
+        firsthop = nil
+        targetlist = load_target_list
+        reader = IPlaneTRFileReader.new(index_file, trace_file)
+        conver_to_as_trace(reader, astrace_file, firsthop, targetlist)
+    end
+    astrace_file
 end
 
 if $0 == __FILE__

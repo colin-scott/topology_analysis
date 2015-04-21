@@ -128,20 +128,22 @@ class ASAnalysis
         end
     end
 
-    def count_as tr
-        astrace = generate_as_trace tr
-        lastasn = tr.src_asn
+    def count_as astrace
+        lastasn = astrace.src_asn
         missing = 0
         as_hops = 0
-        # assume tr.src_asn is not nil
-        #@as_dist[tr.src_asn] = [0, tr.]
+        update_as_distance(astrace.src_asn, 0)
 
-        astrace.each_with_index do |asn, i|
-            if asn.nil?
+        astrace.hops.each do |asn|
+            if asn == -2
+                # unresponsive hops
                 missing += 1
             elsif asn == -1
-                # ignore private IP hop
+                # private IP hop, just ignore
                 next
+            elsif asn == 0
+                # asn lookup failure
+                missing += 1
             else
                 if asn != lastasn
                     if missing == 0
@@ -166,50 +168,15 @@ class ASAnalysis
                 missing = 0
             end
         end
-    end
-
-    def count_as_hops tr
-        return if tr.hops[-1][0] != tr.dst
-
-        astrace = generate_as_trace tr
-        lastasn = tr.src_asn
-        missing = 0
-        as_hops = 0
-
-        astrace.each_with_index do |asn, i|
-            if asn.nil?
-                missing += 1
-            elsif asn == -1
-                # ignore private IP hop
-                next
-            else
-                if asn != lastasn
-                    if as_hops == 0 and not @yahoo_aslist.nil? and @yahoo_aslist.include?(asn)
-                        # don't increase as_hops since it's still inside Yahoo
-                        nil
-                    else
-                        # if missing ASN > 1, we consider an AS hop inside
-                        as_hops += 1 if missing > 0
-                        # new AS hop detected
-                        as_hops += 1
-                    end
-                end
-                lastasn = asn
-                missing = 0
-            end
-        end
-        # missing ASN at the last
+        # missing ASN ast the last
         as_hops += 1 if missing > 0
         # add 1 to include the source AS
         as_hops += 1
-
-        #if as_hops == 1
-        #    puts "#{tr.dst} (hops: #{as_hops})"
-        #    astrace.each_with_index { |asn, i| puts "#{i} #{tr.hops[i][0]} #{asn}" }
-        #end
-
-        @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
-        @tr_dist[as_hops] += 1
+        
+        if astrace.reached
+            @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
+            @tr_dist[as_hops] += 1
+        end
     end
 
     def churn_collect(tr)
