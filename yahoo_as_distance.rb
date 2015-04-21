@@ -2,8 +2,8 @@ require 'set'
 
 require_relative 'retrieve_data.rb'
 require_relative 'config.rb'
-require_relative 'lib/traceroute_reader_util.rb'
-require_relative 'lib/analysis'
+require_relative 'lib/astrace.rb'
+require_relative 'lib/analysis.rb'
 
 include TopoConfig
 
@@ -44,66 +44,67 @@ if $0 == __FILE__
     puts "Duration: #{duration} days"
 
     numday = 0
+    vp_info = load_yahoo_vp_info
     yahoo_aslist = load_yahoo_aslist
-
     vp_stats = {}
-    vp_info = {}
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
         numday += 1
 
         output_date = "#{startdate.strftime("%Y%m%d")}_#{numday}d"
+        as_fn = File.join(YAHOO_OUTPUT_DIR, "as_#{output_date}.txt")
         dist_fn = File.join(YAHOO_OUTPUT_DIR, "as_distance_#{output_date}.txt")
         File.delete(dist_fn) if File.exist?(dist_fn)
-
         links_fn = File.join(YAHOO_OUTPUT_DIR, "as_links_#{output_date}.txt")
+        ashops_fn = File.join(YAHOO_OUTPUT_DIR, "traceroute_as_hops_#{output_date}.txt")
+        File.delete(ashops_fn) if File.exist?(ashops_fn)
 
         tracelist = retrieve_yahoo(date)
-        puts "[#{Time.now}] Start the analysis on #{date}"
+        selected_vps = select_yahoo_vps(tracelist.keys)
+        puts "[#{Time.now}] Start the analysis on #{date} from #{selected_vps.size} nodes"
 
-        tracelist.each do |vp, filelist|
-            if vp_info.has_key?(vp)
-                vp_ip, vp_asn = vp_info[vp]
-            else
-                vp_ip = ASMapper.get_ip_from_url(vp)
-                vp_asn = ASMapper.query_asn(vp_ip)
-                vp_info[vp] = [vp_ip, vp_asn]
-            end
-
-            if vp_asn.nil?
-                puts "#{vp}, #{vp_ip}"
-            end
+        selected_vps.each do |vp|
+            filelist = tracelist[vp]
+            vp_ip, vp_asn = vp_info[vp]
 
             puts "[#{Time.now}] Processing data from #{vp}"
-            vp_stats[vp] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp)
-            stats = vp_stats[vp]
+            vp_stats[vp_asn] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp_asn)
+            stats = vp_stats[vp_asn]
 
-            filelist = download_yahoo_data(filelist)
-            reader = YahooTRFileReader.new filelist
-            firsthop = nil
-
-            reader.each do |tr|
-                # fill in the missing first hop skipped by traceroute
-                firsthop = tr.hops[0] if firsthop.nil? and tr.hops[0][2] != 0
-                tr.hops[0] = firsthop if not firsthop.nil? and tr.hops[0][2] == 0
-
-                tr.src_ip = vp_ip
-                tr.src_asn = vp_asn
-                stats.count_as(tr)
+            astrace_filelist = get_yahoo_astrace_filelist(filelist, vp_ip)
+            reader = ASTraceReader.new(astrace_filelist)
+            tr_total = 0
+            reader.each do |astrace|
+                tr_total += 1
+                astrace.src_asn = vp_asn
+                stats.count_as(astrace)
             end
-
-            # start to output AS distance
+            # output AS distance
             File.open(dist_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
+                f.puts "ASN: #{vp_asn}"
             end
             stats.output_as_distance(dist_fn, true)
+            # output traceroute AS distance
+            File.open(ashops_fn, 'a') do |f|
+                f.puts "VP: #{vp}"
+                f.puts "ASN: #{vp_asn}"
+                f.puts "Total traceroute: #{tr_total}"
+                reached = 0
+                stats.tr_dist.each { |_, cnt| reached += cnt }
+                f.puts "Total reached traceroute: #{reached}"
+            end
+            stats.output_tr_distance(ashops_fn)
         end
         puts "Output to #{dist_fn}"
+        puts "Output to #{ashops_fn}"
 
         # merge vp AS stats into overall stats
         overall_stats = ASAnalysis.new(yahoo_aslist)
-        vp_stats.each { |vp, stats| overall_stats.merge(stats) }
+        vp_stats.each { |_, stats| overall_stats.merge(stats) }
+        overall_stats.output_as(as_fn)
+        puts "Output to #{as_fn}"
         overall_stats.output_aslinks(links_fn)
         puts "Output to #{links_fn}"
     end

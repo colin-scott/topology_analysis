@@ -82,28 +82,31 @@ def download_iplane_data(date, uris)
     return [index_file, trace_file]
 end
 
-def get_yahoo_astrace_filelist(remote_filelist)
+def get_yahoo_astrace_filelist(remote_filelist, firsthop=nil)
     local_filelist = download_yahoo_data(remote_filelist)
     astrace_filelist = []
-    firsthop = nil
+    #firsthop = nil
     local_filelist.each do |fn|
-        reader = AsciiTRFileReader.new(fn)
-        output = fn.sub('tracertagent', 'astrace').sub('.gz', '')
-        firsthop = convert_to_as_trace(reader, output, firsthop)
-        astrace_filelist << output
-        puts "[#{Time.now}] Converted #{fn} to AS tracefile #{output}"
+        astrace_file = fn.sub('tracertagent', 'astrace').sub('.gz', '')
+        if not File.exist?(astrace_file)
+            reader = AsciiTRFileReader.new(fn)
+            firsthop = convert_to_as_trace(reader, astrace_file, firsthop)
+            puts "[#{Time.now}] Converted #{fn} to AS tracefile #{astrace_file}"
+        end
+        astrace_filelist << astrace_file
     end
     astrace_filelist
 end
 
-def get_iplane_astrace_file(date, uris)
+def get_iplane_astrace_file(date, uris, firsthop=nil)
     index_file, trace_file = download_iplane_data(date, uris)
     astrace_file = trace_file.sub("trace.out", 'astrace').sub('.gz', '')
     if not File.exist?(astrace_file)
-        firsthop = nil
+        #firsthop = nil
         targetlist = load_target_list
         reader = IPlaneTRFileReader.new(index_file, trace_file)
         conver_to_as_trace(reader, astrace_file, firsthop, targetlist)
+        puts "[#{Time.now}] Converted #{trace_file} to AS tracefile #{astrace_file}"
     end
     astrace_file
 end

@@ -103,6 +103,18 @@ module TopoConfig
         return [selected_vps, selected_as]
     end
 
+    def select_yahoo_vps(vplist)
+        vp_info = load_yahoo_vp_info
+        filtered_vplist = {}
+        vplist.each do |vp|
+            next if skip_yahoo?(vp)
+            vp_asn = vp_info[vp][1]
+            next if filtered_vplist.has_key?(vp_asn)
+            filtered_vplist[vp_asn] = vp
+        end
+        return filtered_vplist.values
+    end
+
     def load_target_list
         if @@IP_TARGET_LIST.nil?
             @@IP_TARGET_LIST = Set.new
