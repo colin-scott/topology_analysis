@@ -9,7 +9,7 @@ class ASAnalysis
   
     attr_accessor :yahoo_aslist
     attr_reader :tr_total, :reached, :as_dist, :as_links, 
-                :tr_dist, :tr_churn, :ip_no_asn
+                :tr_iphops, :tr_ashops, :tr_churn, :ip_no_asn
 
     def initialize(yahoo_aslist=nil)
         # stats info
@@ -17,7 +17,8 @@ class ASAnalysis
         @reached = 0
         @as_dist = {} # ASN => [#the shortest distance, IP address]
         @as_links = {} # [as1, as2] => count
-        @tr_dist = {} # AS hops => count
+        @tr_iphops = {} # IP hops => count
+        @tr_ashops = {} # AS hops => count
         @tr_churn = {} # [src,dst] => AS traces
 
         @ip_no_asn = Set.new
@@ -29,7 +30,8 @@ class ASAnalysis
         @reached = 0
         @as_dist.clear
         @as_links.clear
-        @tr_dist.clear
+        @tr_iphops.clear
+        @tr_ashops.clear
         @tr_churn.clear
         @ip_no_asn.clear
     end
@@ -136,7 +138,7 @@ class ASAnalysis
         end
     end
 
-    def count_as astrace
+    def count astrace
         @tr_total += 1
         lastasn = astrace.src_asn
         missing = 0
@@ -181,11 +183,14 @@ class ASAnalysis
         as_hops += 1 if missing > 0
         # add 1 to include the source AS
         as_hops += 1
+        ip_hops = astrace.hops.size
         
         if astrace.reached
             @reached += 1
-            @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
-            @tr_dist[as_hops] += 1
+            @tr_iphops[ip_hops] = 0 if not @tr_iphops.has_key?(ip_hops)
+            @tr_iphops[ip_hops] = 1
+            @tr_ashops[as_hops] = 0 if not @tr_ashops.has_key?(as_hops)
+            @tr_ashops[as_hops] += 1
         end
     end
 
@@ -203,8 +208,6 @@ class ASAnalysis
         else
             as_hops = astrace.size
         end
-        @tr_dist[as_hops] = 0 if not @tr_dist.has_key?(as_hops)
-        @tr_dist[as_hops] += 1
 
         if @tr_churn.has_key?([tr.src_ip, tr.dst])
             @tr_churn[[tr.src_ip, tr.dst]] << astrace
@@ -322,17 +325,18 @@ class ASAnalysis
         end
     end
 
-    def output_tr_distance(fn)
-        total_tr_hops = 0
-        tr_count = 0
-        @tr_dist.each do |hops, cnt| 
-            tr_count += cnt
-            total_tr_hops += hops * cnt
-        end
-        avg_tr_hops = total_tr_hops.to_f / tr_count
+    def output_tr_hops(fn)
+        total_iphops = 0
+        total_ashops = 0
+        @tr_iphops.each { |hops, cnt| total_iphops += hops * cnt }
+        @tr_ashops.each { |hops, cnt| total_ashops += hops * cnt }
+        avg_iphops = total_iphops.to_f / @reached
+        avg_ashops = total_ashops.to_f / @reached
         File.open(fn, 'a') do |f|
-            f.printf("Average Traceroute AS Hops: %.2f\n", avg_tr_hops)
-            @tr_dist.keys.sort.each { |hops| f.puts("#{hops}: #{@tr_dist[hops]}") }
+            f.printf("Average IP Hops: %.2f\n", avg_iphops)
+            f.printf("Average AS Hops: %.2f\n", avg_ashops)
+            f.puts("AS Hops:")
+            @tr_ashops.keys.sort.each { |hops| f.puts("#{hops}: #{@tr_ashops[hops]}") }
         end
     end
 end

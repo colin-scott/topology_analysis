@@ -19,7 +19,7 @@ module TopoConfig
     YAHOO_DATA_URI = "arvind3@afterbuilt.corp.yahoo.com:/home/parthak/collector/download/"
     IPLANE_DATA_URI = "http://iplane.cs.washington.edu/data/iplane_logs/"
 
-    VP_COUNT = 16
+    VP_COUNT = 20
 
     IPLANE_BLACKLIST = [
         "planetlab-4.eecs.cwru.edu",
@@ -39,9 +39,7 @@ module TopoConfig
         "cs.otago.ac.nz",
         "ecs.vuw.ac.nz",
     ]
-    IPLANE_SKIP_ASLIST = Set.new [
-        1916, 4134, 2611, 2907, 559, 553, 2852, 786, 680, 14041, 2500, 2614
-    ]
+    IPLANE_SKIP_ASLIST = Set.new [1916]
     YAHOO_BLACKLIST = [
         "r01.ycpi.inc.yahoo.net",
         "r1.ycpi.idc.yahoo.net",
@@ -100,19 +98,17 @@ module TopoConfig
             selected_vps << vp if selected_as.include?(vp_asn)
         end
 
-        return [selected_vps, selected_as]
+        [selected_vps, selected_as]
     end
 
     def select_yahoo_vps(vplist)
         vp_info = load_yahoo_vp_info
-        filtered_vplist = {}
+        selected_vplist = []
         vplist.each do |vp|
             next if skip_yahoo?(vp)
-            vp_asn = vp_info[vp][1]
-            next if filtered_vplist.has_key?(vp_asn)
-            filtered_vplist[vp_asn] = vp
+            selected_vplist << vp
         end
-        return filtered_vplist.values
+        selected_vplist
     end
 
     def load_target_list
