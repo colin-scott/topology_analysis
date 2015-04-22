@@ -57,7 +57,7 @@ if $0 == __FILE__
         dist_fn = File.join(YAHOO_OUTPUT_DIR, "as_distance_#{output_date}.txt")
         File.delete(dist_fn) if File.exist?(dist_fn)
         links_fn = File.join(YAHOO_OUTPUT_DIR, "as_links_#{output_date}.txt")
-        ashops_fn = File.join(YAHOO_OUTPUT_DIR, "traceroute_as_hops_#{output_date}.txt")
+        ashops_fn = File.join(YAHOO_OUTPUT_DIR, "traceroute_hops_#{output_date}.txt")
         File.delete(ashops_fn) if File.exist?(ashops_fn)
 
         tracelist = retrieve_yahoo(date)
@@ -77,7 +77,7 @@ if $0 == __FILE__
             reader = ASTraceReader.new(astrace_filelist)
             reader.each do |astrace|
                 astrace.src_asn = vp_asn
-                stats.count_as(astrace)
+                stats.count(astrace)
             end
         end
         
@@ -98,7 +98,7 @@ if $0 == __FILE__
                 f.puts "Total traceroute: #{stats.tr_total}"
                 f.puts "Total reached traceroute: #{stats.reached}"
             end
-            stats.output_tr_distance(ashops_fn)
+            stats.output_tr_hops(ashops_fn)
 
             overall_stats.merge(stats)
         end
