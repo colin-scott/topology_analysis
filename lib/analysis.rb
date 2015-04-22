@@ -188,7 +188,7 @@ class ASAnalysis
         if astrace.reached
             @reached += 1
             @tr_iphops[ip_hops] = 0 if not @tr_iphops.has_key?(ip_hops)
-            @tr_iphops[ip_hops] = 1
+            @tr_iphops[ip_hops] += 1
             @tr_ashops[as_hops] = 0 if not @tr_ashops.has_key?(as_hops)
             @tr_ashops[as_hops] += 1
         end
