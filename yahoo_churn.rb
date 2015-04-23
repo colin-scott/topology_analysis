@@ -25,8 +25,9 @@ def self.analyze(options)
 
         tracelist_base = retrieve_yahoo(date)
         tracelist_comp = retrieve_yahoo(nextdate)
+        selected_vps = select_yahoo_vps(tracelist_base.keys)
 
-        tracelist_base.each do |vp, filelist|
+        selected_vps.each do |vp|
             vp_ip, vp_asn = vp_info[vp]
             if not tracelist_comp.has_key?(vp)
                 puts "#{vp} has no data on #{nextdate}"
@@ -36,7 +37,7 @@ def self.analyze(options)
             puts "[#{Time.now}] Processing data from #{vp} on #{date}"
 
             stats = ASAnalysis.new
-            astrace_filelist = get_yahoo_astrace_filelist(filelist)
+            astrace_filelist = get_yahoo_astrace_filelist(tracelist_base[vp])
             reader = ASTraceReader.new(astrace_filelist)
             reader.each do |astrace|
                 astrace.src_ip = vp_ip
