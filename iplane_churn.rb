@@ -2,7 +2,7 @@ require 'set'
 
 require_relative 'retrieve_data.rb'
 require_relative 'config.rb'
-require_relative 'lib/traceroute_reader_util.rb'
+require_relative 'lib/astrace.rb'
 require_relative 'lib/analysis.rb'
 
 include TopoConfig
@@ -10,13 +10,12 @@ include TopoConfig
 module ChurnAnalysis
 def self.analyze(options)
     startdate = options[:start]
-    duration = options[:duration]
-    selected_as = options[:aslist]
+    duration = if options[:duration].nil? then 1 else options[:duration] end
+    selected_as = options[:aslist] # either nil or a list of selected ASN
     targets = load_target_list
 
     vp_info = load_iplane_vp_info
     numday = 0
-    vp_stats = {}
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
@@ -41,9 +40,9 @@ def self.analyze(options)
             end
 
             puts "[#{Time.now}] Processing data from #{vp} on #{date}"
-            astrace_file = get_iplane_astrace_file(date, tracelist_base[vp])
-            
+
             stats = ASAnalysis.new
+            astrace_file = get_iplane_astrace_file(date, tracelist_base[vp])
             reader = ASTraceReader.new(astrace_file)
             reader.each do |astrace|
                 astrace.src_ip = vp_ip
@@ -55,7 +54,7 @@ def self.analyze(options)
             File.open(churn_fn, 'a') do |f|
                 f.puts "VP ASN: #{vp_asn}"
                 f.puts "VP on #{date}: #{vp}"
-                f.puts "#reached traceroute on #{date}: #{stats.reached}"
+                f.puts "reached traceroute on #{date}: #{stats.reached}"
             end
 
             # compare next day's result

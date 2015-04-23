@@ -3,10 +3,11 @@ require_relative 'iplane_churn.rb'
 if $0 == __FILE__
     options = {}
     optparse = OptionParser.new do |opts|
-        options[:start] = nil
-        opts.on("-o", "--option OPTION", [:as, :churn], "Select analysis types (as, churn)") do |option|
+        options[:option] = nil
+        opts.on("-o", "--option OPTION", [:as, :churn], "Select analysis (as, churn)") do |option|
             options[:option] = option
         end
+        options[:start] = nil
         opts.on("-s", "--start DATE", "Specify the start date (format: 20150101)") do |start|
             options[:start] = Date.parse(start)
         end
