@@ -69,9 +69,8 @@ if $0 == __FILE__
             vp_ip, vp_asn = vp_info[vp]
 
             puts "[#{Time.now}] Processing data from #{vp}"
-            vp_stats[vp_asn] = [vp, ASAnalysis.new(yahoo_aslist)] if not vp_stats.has_key?(vp_asn)
-            _, stats = vp_stats[vp_asn]
-            vp_stats[vp_asn][0] = vp # update the vp url
+            vp_stats[vp] = ASAnalysis.new(yahoo_aslist) if not vp_stats.has_key?(vp)
+            stats = vp_stats[vp]
 
             astrace_filelist = get_yahoo_astrace_filelist(filelist, vp_ip)
             reader = ASTraceReader.new(astrace_filelist)
@@ -83,18 +82,18 @@ if $0 == __FILE__
         
         # merge vp AS stats into overall stats
         overall_stats = ASAnalysis.new(yahoo_aslist)
-        vp_stats.each do |asn, val| 
-            vp, stats = val
+        vp_stats.each do |vp, stats| 
+            vp_asn = vp_info[vp][1]
             # output AS distance
             File.open(dist_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
-                f.puts "ASN: #{asn}"
+                f.puts "ASN: #{vp_asn}"
             end
             stats.output_as_distance(dist_fn, true)
             # output traceroute AS distance
             File.open(ashops_fn, 'a') do |f|
                 f.puts "VP: #{vp}"
-                f.puts "ASN: #{asn}"
+                f.puts "ASN: #{vp_asn}"
                 f.puts "Total traceroute: #{stats.tr_total}"
                 f.puts "Total reached traceroute: #{stats.reached}"
             end
