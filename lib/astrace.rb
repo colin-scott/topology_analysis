@@ -56,17 +56,38 @@ def convert_to_as_trace(reader, output, firsthop, targetlist=nil)
 end
 
 class ASTrace
-    attr_accessor :src_asn
-    attr_reader :dst, :reached, :hops
-    def initialize(dst, reached)
-        @src_asn = nil
-        @dst = dst
+    attr_accessor :src_ip, :src_asn
+    attr_reader :dst_ip, :reached, :hops
+    def initialize(dst_ip, reached)
+        @dst_ip = dst_ip
         @reached = reached
+
+        @src_ip = nil
+        @src_asn = nil
         @hops = []
     end
 
+    def compact()
+        chops = if @src_asn.nil? then [] else [@src_asn] end
+        skip = false
+        @hops.each do |asn|
+            if chops.size == 0
+                chops << asn
+            elsif asn <= 0
+                skip = true
+            else
+                if asn != chops[-1]
+                    chops << nil if skip
+                    chops << asn
+                end
+                skip = false
+            end
+        end
+        chops
+    end
+
     def to_s
-        str = "#{@dst} #{@reached}"
+        str = "#{@dst_ip} #{@reached}"
         @hops.each { |asn| str += " #{asn}" }
         str
     end
@@ -85,9 +106,9 @@ class ASTraceReader
         @filelist.each do |fn|
             File.open(fn).each do |line|
                 hops = line.chomp.split
-                dst = hops.shift
+                dst_ip = hops.shift
                 reached = (hops.shift == 'true')
-                astrace = ASTrace.new(dst, reached)
+                astrace = ASTrace.new(dst_ip, reached)
                 hops.each { |asn| astrace.hops << asn.to_i }
                 block.call(astrace)
             end
