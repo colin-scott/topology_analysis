@@ -1,3 +1,4 @@
+require_relative 'yahoo_as_distance.rb'
 require_relative 'yahoo_churn.rb'
 
 if $0 == __FILE__
@@ -32,7 +33,9 @@ if $0 == __FILE__
     #    exit
     end
 
-    if options[:option] == :churn
+    if options[:option] == :as
+        ASDistance::analyze(options)
+    elsif options[:option] == :churn
         ChurnAnalysis::analyze(options)
     end
 end

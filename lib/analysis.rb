@@ -92,11 +92,11 @@ class ASAnalysis
                 missing += 1
             else
                 if asn != lastasn
-                    if missing == 0
-                        link = [lastasn, asn].sort
-                        @as_links[link] = 0 if not @as_links.has_key?(link)
-                        @as_links[link] += 1
-                    end
+                    #if missing == 0
+                    #    link = [lastasn, asn].sort
+                    #    @as_links[link] = 0 if not @as_links.has_key?(link)
+                    #    @as_links[link] += 1
+                    #end
 
                     # update AS distance 
                     if as_hops == 0 and not @yahoo_aslist.nil? and @yahoo_aslist.include?(asn)
