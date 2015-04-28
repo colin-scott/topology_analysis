@@ -18,6 +18,7 @@ def self.convert(options)
     duration = options[:duration]
     puts "Duration: #{duration} days"
 
+    vp_info = load_yahoo_vp_info
     numday = 0
 
     while numday < duration
@@ -29,6 +30,8 @@ def self.convert(options)
 
         tracelist.each do |vp, filelist|
             puts "[#{Time.now}] Processing data from #{vp}"
+            # make sure we also download all traceroute file
+            download_yahoo_data(filelist)
             vp_ip, vp_asn = vp_info[vp]
             astrace_filelist = get_yahoo_astrace_filelist(filelist, vp_ip)
         end
