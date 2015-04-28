@@ -7,20 +7,29 @@ require_relative 'lib/asmapper.rb'
 include TopoConfig
 
 if $0  == __FILE__
-    startdate = Date.parse('20150219')
-    duration = 7
+    if ARGV.size < 3
+        puts "%s platform date duration" % __FILE__
+        exit
+    end
+
+    platform = ARGV[0]
+    startdate = Date.parse(ARGV[1])
+    duration = ARGV[2].to_i
+
+    if platform != 'yahoo' and platform != 'iplane'
+        puts "Wrong platform option: yahoo/iplane"
+        exit
+    end
 
     numday = 0
     vplist = Set.new
-    #output = "data/iplane_vps.txt"
-    output = "data/yahoo_vps.txt"
+    output = if platform == 'iplane' then 'data/iplane_vps.txt' else 'data/yahoo_vps.txt' end
     fout = File.open(output, 'w')
 
     while numday < duration
         date = (startdate + numday).strftime("%Y%m%d")
         numday += 1
-        #tracelist = retrieve_iplane(date)
-        tracelist = retrieve_yahoo(date)
+        tracelist = if platform == 'iplane' then retrieve_iplane(date) else retrieve_yahoo(date) end
         tracelist.each do |vp, _|
             #next if IPLANE_BLACKLIST.include?(vp)
             next if vplist.include?(vp)

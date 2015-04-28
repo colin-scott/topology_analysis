@@ -31,16 +31,11 @@ def self.convert(options)
         tracelist.each do |vp, uris|
             next if skip_iplane?(vp)
             puts "[#{Time.now}] Processing data from #{vp}"
-
-            firsthop = nil
-            index_file, trace_file = download_iplane_data(date, uris)
-            reader = IPlaneTRFileReader.new(index_file, trace_file)
-            output = trace_file.sub('trace.out', 'astrace').sub('.gz', '')
-
-            puts "[#{Time.now}] Converting #{trace_file}"
-            convert_to_as_trace(reader, output, firsthop, targets)
-            puts "[#{Time.now}] Output AS trace file #{output}"
-       end
+            # download raw traceroute data
+            download_iplane_data(date, uris)
+            # convert to astrace data
+            get_iplane_astrace_file(date, uris)
+        end
     end
 
     puts "[#{Time.now}] Program ends"

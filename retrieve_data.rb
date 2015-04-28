@@ -122,7 +122,7 @@ def get_iplane_astrace_file(date, uris, firsthop=nil)
         index_file, trace_file = download_iplane_data(date, uris)
         reader = IPlaneTRFileReader.new(index_file, trace_file)
         targetlist = load_target_list
-        conver_to_as_trace(reader, astrace_file, firsthop, targetlist)
+        convert_to_as_trace(reader, astrace_file, firsthop, targetlist)
         puts "[#{Time.now}] Converted #{trace_file} to AS tracefile #{astrace_file}"
     end
     astrace_file
