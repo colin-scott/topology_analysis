@@ -19,8 +19,7 @@ module TopoConfig
     YAHOO_DATA_URI = "arvind3@afterbuilt.corp.yahoo.com:/home/parthak/collector/download/"
     IPLANE_DATA_URI = "http://iplane.cs.washington.edu/data/iplane_logs/"
 
-    VP_COUNT = 20
-
+    VP_COUNT = 19
     IPLANE_BLACKLIST = [
         "planetlab-4.eecs.cwru.edu",
         "cs.ucr.edu",
@@ -40,7 +39,7 @@ module TopoConfig
         "ecs.vuw.ac.nz",
     ]
     IPLANE_SKIP_ASLIST = Set.new [1916]
-    YAHOO_BLACKLIST = [
+    YAHOO_BLACKLIST = Set.new [
         "r01.ycpi.inc.yahoo.net",
         "r1.ycpi.idc.yahoo.net",
         "r1.ycpi.vnb.yahoo.net",
@@ -63,9 +62,20 @@ module TopoConfig
         Dir.mkdir(YAHOO_OUTPUT_DIR) if not Dir.exist?(YAHOO_OUTPUT_DIR)
     end
 
-    def skip_iplane?(url)
+    def skip_iplane?(vp)
+        # first check the blacklist for borken nodes
         IPLANE_BLACKLIST.each do |suffix|
-            return true if url.end_with?(suffix)
+            if vp.end_with?(suffix)
+                puts "Skip the broken node #{vp}"
+                return true
+            end
+        end
+        # next check the core node AS list
+        vp_info = load_iplane_vp_info
+        vp_asn = vp_info[vp][1]
+        if IPLANE_SKIP_ASLIST.include?(vp_asn)
+            puts "Skip the core node #{vp}"
+            return true
         end
         return false
     end
@@ -80,12 +90,10 @@ module TopoConfig
 
     def select_iplane_vps(vplist, selected_as=nil)
         vp_info = load_iplane_vp_info
-
         filtered_vplist = {}
         vplist.each do |vp|
             next if skip_iplane?(vp)
             vp_asn = vp_info[vp][1]
-            next if IPLANE_SKIP_ASLIST.include?(vp_asn)
             next if filtered_vplist.has_key?(vp_asn)
             filtered_vplist[vp_asn] = vp
         end

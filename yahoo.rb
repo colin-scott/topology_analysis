@@ -1,11 +1,12 @@
 require_relative 'yahoo_as_distance.rb'
 require_relative 'yahoo_churn.rb'
+require_relative 'yahoo_convert.rb'
 
 if $0 == __FILE__
     options = {}
     optparse = OptionParser.new do |opts|
         options[:option] = nil
-        opts.on("-o", "--option OPTION", [:as, :churn], "Select anlysis (as, churn)") do |option|
+        opts.on("-o", "--option OPTION", [:as, :churn, :convert], "Select anlysis (as, churn, convert)") do |option|
             options[:option] = option
         end
         options[:start] = nil
@@ -37,5 +38,7 @@ if $0 == __FILE__
         ASDistance::analyze(options)
     elsif options[:option] == :churn
         ChurnAnalysis::analyze(options)
+    elsif options[:option] == :convert
+        Converter::convert(options)
     end
 end
