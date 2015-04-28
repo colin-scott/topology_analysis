@@ -32,6 +32,8 @@ def self.convert(options)
             puts "[#{Time.now}] Processing data from #{vp}"
             # make sure we also download all traceroute file
             download_yahoo_data(filelist)
+            # convert the trace file to astrace file
+            # use the vp_ip for the missing 1st hops since 1st hop is always within CDN
             vp_ip, vp_asn = vp_info[vp]
             astrace_filelist = get_yahoo_astrace_filelist(filelist, vp_ip)
         end

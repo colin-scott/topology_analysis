@@ -56,8 +56,8 @@ def download_yahoo_data(filelist)
         puts "[#{Time.now}] Download #{fn}"
         `scp #{remote_uri} #{YAHOO_DATA_DIR}`
     end
-    filelist.map! { |fn| fn = File.join(YAHOO_DATA_DIR, fn) }
-    return filelist
+    localfilelist = filelist.map { |fn| fn = File.join(YAHOO_DATA_DIR, fn) }
+    return localfilelist
 end
 
 def download_iplane_data(date, uris)
@@ -88,7 +88,7 @@ def get_yahoo_astrace_filelist(remote_filelist, firsthop=nil)
     # first generate the astrace filelist and check if any missing
     remote_filelist.each do |fn|
         localfn = File.join(YAHOO_DATA_DIR, fn)
-        astrace_file = fn.sub('tracertagent', 'astrace').sub('.gz', '')
+        astrace_file = localfn.sub('tracertagent', 'astrace').sub('.gz', '')
         missing = true if not File.exist?(astrace_file)
         astrace_filelist << astrace_file
     end
