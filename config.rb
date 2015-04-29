@@ -66,7 +66,7 @@ module TopoConfig
         # first check the blacklist for borken nodes
         IPLANE_BLACKLIST.each do |suffix|
             if vp.end_with?(suffix)
-                puts "Skip the broken node #{vp}"
+                #puts "Skip the broken node #{vp}"
                 return true
             end
         end
@@ -74,7 +74,7 @@ module TopoConfig
         vp_info = load_iplane_vp_info
         vp_asn = vp_info[vp][1]
         if IPLANE_SKIP_ASLIST.include?(vp_asn)
-            puts "Skip the core node #{vp}"
+            #puts "Skip the core node #{vp}"
             return true
         end
         return false

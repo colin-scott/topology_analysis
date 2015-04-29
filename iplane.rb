@@ -1,12 +1,14 @@
 require_relative 'iplane_as_distance.rb'
 require_relative 'iplane_churn.rb'
 require_relative 'iplane_convert.rb'
+require_relative 'iplane_atom.rb'
 
 if $0 == __FILE__
     options = {}
     optparse = OptionParser.new do |opts|
         options[:option] = nil
-        opts.on("-o", "--option OPTION", [:as, :churn, :convert], "Select analysis (as, churn, convert)") do |option|
+        opts.on("-o", "--option OPTION", [:as, :atom, :churn, :convert], 
+                "Select analysis (as, atom, churn, convert)") do |option|
             options[:option] = option
         end
         options[:start] = nil
@@ -41,6 +43,8 @@ if $0 == __FILE__
 
     if options[:option] == :as
         nil
+    elsif options[:option] == :atom
+        BGPAtomAnalysis::analyze(options)
     elsif options[:option] == :churn
         ChurnAnalysis::analyze(options)
     elsif options[:option] == :convert
