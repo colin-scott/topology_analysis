@@ -13,57 +13,45 @@ def self.analyze(options)
 
     startdate = options[:start]
     duration = options[:duration]
-    selected_as = options[:aslist] # either nil or a list of selected ASNs
-    targets = load_target_list
-    vp_info = load_iplane_vp_info
+    vp_info = load_yahoo_vp_info
 
     all_tracelist = {}
     puts "Duration: #{duration} days"
 
     (0...duration).each do |i|
         date = (startdate + i).strftime("%Y%m%d")
-        all_tracelist[date] = retrieve_iplane(date)
+        all_tracelist[date] = retrieve_yahoo(date)
     end
 
     startdatestr = startdate.strftime("%Y%m%d")
-    selected_vps, selected_as = select_iplane_vps(all_tracelist[startdatestr].keys, selected_as)
-    puts "[#{Time.now}] Selected #{selected_as.size} sites"
+    selected_vps = select_yahoo_vps(all_tracelist[startdatestr].keys)
+    puts "[#{Time.now}] Selected #{selected_vps.size} VPs"
 
-    selected_vps.each do |vp_url|
-        vp_url_suffix = vp_url[vp_url.index('.')+1..-1]
-        _, vp_asn = vp_info[vp_url]
+    selected_vps.each do |vp|
+        _, vp_asn = vp_info[vp]
         atom_info_map = {}
         available_date = []
-
-        puts "[#{Time.now}] Start for PL site #{vp_url_suffix}"
+        puts "[#{Time.now}] Start for VP #{vp}"
 
         (0...duration).each do |i|
             date = (startdate + i).strftime("%Y%m%d")
             tracelist = all_tracelist[date]
-            vp = nil
-            tracelist.keys.each do |url| 
-                if url.end_with?(vp_url_suffix)
-                    vp = url
-                    break
-                end
-            end
-            next if vp.nil?
+            next if not tracelist.keys.include?(vp)
 
-            puts "[#{Time.now}] Processing data from #{vp} on #{date}"
+            puts "[#{Time.now}] Processing date #{date}"
             available_date << date
-            uris = tracelist[vp]
+            filelist = tracelist[vp]
 
-            index_file, tr_file = download_iplane_data(date, uris)
-            reader = IPlaneTRFileReader.new(index_file, tr_file)
+            localfilelist = download_yahoo_data(filelist)
+            reader = YahooTRFileReader.new(localfilelist)
             reader.each do |tr|
-                next if not targets.include?(tr.dst)
-                next if tr.hops.size == 0 or tr.dst != tr.hops[-1][0]
+                next if tr.dst != tr.hops[-1][0]
                 atom_info_map[tr.dst] = BGPAtom.new(tr.dst) if not atom_info_map.has_key?(tr.dst)
                 atom_info_map[tr.dst].add_traceroute(tr)
             end
 
-            astrace_file = get_iplane_astrace_file(date, uris)
-            reader = ASTraceReader.new(astrace_file)
+            astrace_filelist = get_yahoo_astrace_filelist(filelist)
+            reader = ASTraceReader.new(astrace_filelist)
             reader.each do |astrace|
                 next if not astrace.reached
                 astrace.src_asn = vp_asn
@@ -71,7 +59,9 @@ def self.analyze(options)
             end
         end
         
-        output_fn = File.join(IPLANE_OUTPUT_DIR, "atom_#{vp_url_suffix}_#{startdatestr}_#{duration}d.txt")
+        output_dir = File.join(YAHOO_OUTPUT_DIR, "atom")
+        Dir.mkdir(output_dir) if not Dir.exist?(output_dir)
+        output_fn = File.join(output_dir, "atom_#{vp}_#{startdatestr}_#{duration}d.txt")
         File.open(output_fn, 'w') do |f|
             f.puts "# dates: #{available_date.join(",")}"
             f.puts
