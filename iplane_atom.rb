@@ -1,3 +1,5 @@
+require 'digest/sha1'
+
 require_relative 'config.rb'
 require_relative 'retrieve_data.rb'
 require_relative 'lib/traceroute_reader_util.rb'
@@ -28,10 +30,15 @@ def self.analyze(options)
     startdatestr = startdate.strftime("%Y%m%d")
     selected_vps, selected_as = select_iplane_vps(all_tracelist[startdatestr].keys, selected_as)
     puts "[#{Time.now}] Selected #{selected_as.size} sites"
+    output_dir = File.join(IPLANE_OUTPUT_DIR, "atom_#{Digest::SHA1.hexdigest(selected_as.sort.join("-"))}")
+    Dir.mkdir(output_dir) if not Dir.exist?(output_dir)
+    vplist_fn = File.join(output_dir, "vplist.txt")
+    File.delete(vplist_fn) if File.exist?(vplist_fn)
 
     selected_vps.each do |vp_url|
         vp_url_suffix = vp_url[vp_url.index('.')+1..-1]
         _, vp_asn = vp_info[vp_url]
+        File.open(vplist_fn, 'a') { |f| f.puts vp_url_suffix }
         atom_info_map = {}
         available_date = []
 
@@ -71,7 +78,7 @@ def self.analyze(options)
             end
         end
         
-        output_fn = File.join(IPLANE_OUTPUT_DIR, "atom_#{vp_url_suffix}_#{startdatestr}_#{duration}d.txt")
+        output_fn = File.join(output_dir, "atom_#{vp_url_suffix}_#{startdatestr}_#{duration}d.txt")
         File.open(output_fn, 'w') do |f|
             f.puts "# dates: #{available_date.join(",")}"
             f.puts
